@@ -729,6 +729,10 @@
             border-color: var(--primary);
             color: var(--primary);
         }
+
+        .scheme-marked {
+            box-shadow: inset 0 0 0 3px #e94560 !important;
+        }
     </style>
 </head>
 <body>
@@ -913,11 +917,11 @@
                     <div class="section" style="margin-top: 6px;">
                         <div style="display: flex; gap: 6px;">
                             <button class="btn btn-secondary" onclick="switchScheme(1)" style="flex: 1; padding: 14px 4px; font-size: 12px; white-space: nowrap;" id="schemeBtn1">福大底</button>
-                            <button class="btn btn-secondary" onclick="switchScheme(2)" style="flex: 1; padding: 14px 4px; font-size: 12px; white-space: nowrap;" id="schemeBtn2">方案1</button>
-                            <button class="btn btn-secondary" onclick="switchScheme(3)" style="flex: 1; padding: 14px 4px; font-size: 12px; white-space: nowrap;" id="schemeBtn3">方案2</button>
+                            <button class="btn btn-secondary" onclick="switchScheme(2)" ondblclick="toggleSchemeMark(2)" style="flex: 1; padding: 14px 4px; font-size: 12px; white-space: nowrap;" id="schemeBtn2">方案1</button>
+                            <button class="btn btn-secondary" onclick="switchScheme(3)" ondblclick="toggleSchemeMark(3)" style="flex: 1; padding: 14px 4px; font-size: 12px; white-space: nowrap;" id="schemeBtn3">方案2</button>
                             <button class="btn btn-secondary" onclick="switchScheme(4)" style="flex: 1; padding: 14px 4px; font-size: 12px; white-space: nowrap;" id="schemeBtn4">体大底</button>
-                            <button class="btn btn-secondary" onclick="switchScheme(5)" style="flex: 1; padding: 14px 4px; font-size: 12px; white-space: nowrap;" id="schemeBtn5">方案1</button>
-                            <button class="btn btn-secondary" onclick="switchScheme(6)" style="flex: 1; padding: 14px 4px; font-size: 12px; white-space: nowrap;" id="schemeBtn6">方案2</button>
+                            <button class="btn btn-secondary" onclick="switchScheme(5)" ondblclick="toggleSchemeMark(5)" style="flex: 1; padding: 14px 4px; font-size: 12px; white-space: nowrap;" id="schemeBtn5">方案1</button>
+                            <button class="btn btn-secondary" onclick="switchScheme(6)" ondblclick="toggleSchemeMark(6)" style="flex: 1; padding: 14px 4px; font-size: 12px; white-space: nowrap;" id="schemeBtn6">方案2</button>
                         </div>
                     </div>
                 </div>
@@ -1654,7 +1658,7 @@
             </div>
 
             <div class="zuoyou-panel">
-                <button class="preset-btn" onclick="toggleZuoyouPanel(this)" ondblclick="clearZuoyouInputs(event)" title="单击折叠/展开，双击清空作业（不清空近期直选）">📋 作业区</button>
+                <button class="preset-btn" ondblclick="clearZuoyouInputs(event)" title="双击清空作业（不清空近期直选）">📋 作业区</button>
                 <div id="zuoyouContent" class="zuoyou-content" style="display: block; margin-top: 6px; background: #f0f0f0; padding: 12px; border-radius: 12px;">
                     <div style="font-weight: bold; margin-bottom: 12px; color: #e94560;">🎯 输入号码，一键生成组合</div>
                     
@@ -1670,7 +1674,9 @@
                             <label style="font-weight: 600; color: #333; white-space: nowrap;">去组合：</label>
                             <input type="text" id="duanzu1" class="input-xiaomi" style="flex: 1;" placeholder="">
                         </div>
-                        <div style="display: flex; gap: 8px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <label style="font-weight: 600; color: #333; white-space: nowrap;">单挑：</label>
+                            <input type="text" id="favor1" class="input-xiaomi" style="width: 60px;" placeholder="">
                             <button class="btn btn-secondary" style="flex: 1; padding: 6px 10px; font-size: 12px;" onclick="copyZuoyouResult(1)">📋 复制结果</button>
                         </div>
                     </div>
@@ -1687,7 +1693,9 @@
                             <label style="font-weight: 600; color: #333; white-space: nowrap;">去组合：</label>
                             <input type="text" id="duanzu2" class="input-xiaomi" style="flex: 1;" placeholder="">
                         </div>
-                        <div style="display: flex; gap: 8px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <label style="font-weight: 600; color: #333; white-space: nowrap;">单挑：</label>
+                            <input type="text" id="favor2" class="input-xiaomi" style="width: 60px;" placeholder="">
                             <button class="btn btn-secondary" style="flex: 1; padding: 6px 10px; font-size: 12px;" onclick="copyZuoyouResult(2)">📋 复制结果</button>
                         </div>
                     </div>
@@ -1704,7 +1712,9 @@
                             <label style="font-weight: 600; color: #333; white-space: nowrap;">去组合：</label>
                             <input type="text" id="duanzu3" class="input-xiaomi" style="flex: 1;" placeholder="">
                         </div>
-                        <div style="display: flex; gap: 8px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <label style="font-weight: 600; color: #333; white-space: nowrap;">单挑：</label>
+                            <input type="text" id="favor3" class="input-xiaomi" style="width: 60px;" placeholder="">
                             <button class="btn btn-secondary" style="flex: 1; padding: 6px 10px; font-size: 12px;" onclick="copyZuoyouResult(3)">📋 复制结果</button>
                         </div>
                     </div>
@@ -2748,6 +2758,16 @@ function updateSchemeButtons(activeScheme) {
             btn.style.background = 'var(--card)';
             btn.style.color = 'var(--text)';
         }
+    }
+}
+
+// 双击方案1/方案2按钮切换常亮标记（纯视觉标记）
+function toggleSchemeMark(scheme) {
+    const btn = document.getElementById('schemeBtn' + scheme);
+    if (btn.classList.contains('scheme-marked')) {
+        btn.classList.remove('scheme-marked');
+    } else {
+        btn.classList.add('scheme-marked');
     }
 }
 
@@ -4305,6 +4325,11 @@ function clearZuoyouInputs(event) {
     document.getElementById('duanzu2').value = '';
     document.getElementById('duanzu3').value = '';
     
+    // 清空看好号码
+    document.getElementById('favor1').value = '';
+    document.getElementById('favor2').value = '';
+    document.getElementById('favor3').value = '';
+    
     // 清空作业结果显示
     document.getElementById('zuoyou1Numbers').innerHTML = '';
     document.getElementById('zuoyou2Numbers').innerHTML = '';
@@ -4321,14 +4346,8 @@ function clearZuoyouInputs(event) {
 
 function loadZuoyouState() {
     const content = document.getElementById('zuoyouContent');
-    const btn = content.previousElementSibling;
-    const state = localStorage.getItem('作业区_折叠状态');
-    if (state === 'true') {
-        content.style.display = 'none';
-        btn.classList.remove('collapsed');
-    } else {
+    if (content) {
         content.style.display = 'block';
-        btn.classList.add('collapsed');
     }
 }
 
@@ -4343,6 +4362,9 @@ function saveZuoyouConfig() {
         duanzu1: document.getElementById('duanzu1').value,
         duanzu2: document.getElementById('duanzu2').value,
         duanzu3: document.getElementById('duanzu3').value,
+        favor1: document.getElementById('favor1').value,
+        favor2: document.getElementById('favor2').value,
+        favor3: document.getElementById('favor3').value,
         weikuangBai: document.getElementById('weikuangBai').value,
         weikuangShi: document.getElementById('weikuangShi').value,
         weikuangGe: document.getElementById('weikuangGe').value,
@@ -4647,6 +4669,9 @@ function loadZuoyouConfig() {
         document.getElementById('duanzu1').value = config.duanzu1 || '';
         document.getElementById('duanzu2').value = config.duanzu2 || '';
         document.getElementById('duanzu3').value = config.duanzu3 || '';
+        document.getElementById('favor1').value = config.favor1 || '';
+        document.getElementById('favor2').value = config.favor2 || '';
+        document.getElementById('favor3').value = config.favor3 || '';
         // 加载位框配置
         document.getElementById('weikuangBai').value = config.weikuangBai || '';
         document.getElementById('weikuangShi').value = config.weikuangShi || '';
@@ -4695,10 +4720,10 @@ function expandZuoyou() {
     const tiedan2 = document.getElementById('tiedan2').value.trim();
     const tiedan3 = document.getElementById('tiedan3').value.trim();
     
-    // 根据六码自动计算去组合
-    const autoDuanzu1 = autoCalculateDuanzu(zuoyou1, 3);
-    const autoDuanzu2 = autoCalculateDuanzu(zuoyou2, 3);
-    const autoDuanzu3 = autoCalculateDuanzu(zuoyou3, 3);
+    // 根据六码自动计算去组合：康师傅显示8组，老洋和名将显示6组
+    const autoDuanzu1 = autoCalculateDuanzu(zuoyou1, 8);
+    const autoDuanzu2 = autoCalculateDuanzu(zuoyou2, 6);
+    const autoDuanzu3 = autoCalculateDuanzu(zuoyou3, 6);
     
     // 检查用户是否手动修改过去组合（与上次自动生成的不同）
     const currentDuanzu1 = document.getElementById('duanzu1').value.trim();
@@ -4749,6 +4774,47 @@ function expandZuoyou() {
         ? { bai: weikuangCheck.bai, shi: weikuangCheck.shi, ge: weikuangCheck.ge, mode }
         : (mode === 'guan' ? { mode: 'guan' } : null);
     
+    // 读取看好号码
+    const favor1 = document.getElementById('favor1').value.trim();
+    const favor2 = document.getElementById('favor2').value.trim();
+    const favor3 = document.getElementById('favor3').value.trim();
+    
+    // 校验看好号码重复
+    const favorList = [favor1, favor2, favor3].filter(f => f);
+    const favorSet = new Set(favorList);
+    if (favorList.length !== favorSet.size) {
+        alert('看好号码不能重复！');
+        return;
+    }
+    
+    // 校验看好号码是否在候选范围内
+    function validateFavor(favor, zuoyou, tiedan) {
+        if (!favor) return true;
+        if (!/^\d{3}$/.test(favor)) {
+            alert('看好号码必须是3位数字！');
+            return false;
+        }
+        if (!zuoyou) {
+            alert('作业号码源为空时不能指定看好号码！');
+            return false;
+        }
+        const data = parseZuoyouInput(zuoyou);
+        const allDigits = [...new Set([...data.sima, ...data.wuma, ...data.liuma, ...data.qima])];
+        const favorDigits = favor.split('');
+        const tiedanDigits = tiedan ? tiedan.split('').filter(d => /^\d$/.test(d)) : [];
+        const hasTiedan = tiedanDigits.length === 0 || favorDigits.some(d => tiedanDigits.includes(d));
+        const allInDigits = favorDigits.every(d => allDigits.includes(d));
+        if (!allInDigits || !hasTiedan) {
+            alert('看好号码必须在作业号码源范围内且包含胆码！');
+            return false;
+        }
+        return true;
+    }
+    
+    if (!validateFavor(favor1, zuoyou1, tiedan1)) return;
+    if (!validateFavor(favor2, zuoyou2, tiedan2)) return;
+    if (!validateFavor(favor3, zuoyou3, tiedan3)) return;
+    
     if (!zuoyou1 && !zuoyou2 && !zuoyou3) {
         alert('请至少输入一个号码！');
         return;
@@ -4763,8 +4829,8 @@ function expandZuoyou() {
     
     if (zuoyou1) {
         const data1 = parseZuoyouInput(zuoyou1);
-        const result1 = processZuoyou(data1, tiedan1, duanzu1, 'kangshifu', excludeList);
-        const fmt1 = formatZuoyouResult(result1.combinations, 'kangshifu', result1.info, usedPermutations, weikuangConfig);
+        const result1 = processZuoyou(data1, tiedan1, duanzu1, 'kangshifu', excludeList, weikuangConfig, favor1);
+        const fmt1 = formatZuoyouResult(result1.combinations, 'kangshifu', result1.info, usedPermutations, weikuangConfig, favor1);
         document.getElementById('zuoyou1Numbers').innerHTML = fmt1.html;
         zuoyouResultsData[1] = { type: 'kangshifu', combinations: result1.combinations, shuffledCombinations: fmt1.shuffledCombinations, info: result1.info };
         totalCount += result1.combinations.length;
@@ -4775,8 +4841,8 @@ function expandZuoyou() {
     
     if (zuoyou2) {
         const data2 = parseZuoyouInput(zuoyou2);
-        const result2 = processZuoyou(data2, tiedan2, duanzu2, 'laoyang', excludeList);
-        const fmt2 = formatZuoyouResult(result2.combinations, 'laoyang', result2.info, usedPermutations, weikuangConfig);
+        const result2 = processZuoyou(data2, tiedan2, duanzu2, 'laoyang', excludeList, weikuangConfig, favor2);
+        const fmt2 = formatZuoyouResult(result2.combinations, 'laoyang', result2.info, usedPermutations, weikuangConfig, favor2);
         document.getElementById('zuoyou2Numbers').innerHTML = fmt2.html;
         zuoyouResultsData[2] = { type: 'laoyang', combinations: result2.combinations, shuffledCombinations: fmt2.shuffledCombinations, info: result2.info };
         totalCount += result2.combinations.length;
@@ -4787,8 +4853,8 @@ function expandZuoyou() {
     
     if (zuoyou3) {
         const data3 = parseZuoyouInput(zuoyou3);
-        const result3 = processZuoyou(data3, tiedan3, duanzu3, 'mingjiang', excludeList);
-        const fmt3 = formatZuoyouResult(result3.combinations, 'mingjiang', result3.info, usedPermutations, weikuangConfig);
+        const result3 = processZuoyou(data3, tiedan3, duanzu3, 'mingjiang', excludeList, weikuangConfig, favor3);
+        const fmt3 = formatZuoyouResult(result3.combinations, 'mingjiang', result3.info, usedPermutations, weikuangConfig, favor3);
         document.getElementById('zuoyou3Numbers').innerHTML = fmt3.html;
         zuoyouResultsData[3] = { type: 'mingjiang', combinations: result3.combinations, shuffledCombinations: fmt3.shuffledCombinations, info: result3.info };
         totalCount += result3.combinations.length;
@@ -5005,7 +5071,78 @@ function parseZuoyouInput(input) {
     };
 }
 
-function processZuoyou(data, tiedan, duanzu, type, excludeList = []) {
+// 判断组合是否有任何排列符合位框范围
+function hasValidPermutation(numStr, weikuangConfig) {
+    if (!weikuangConfig || weikuangConfig.mode === 'guan') return true;
+    
+    const allPerms = generateAllPermutations(numStr);
+    const qianRanges = getQianRanges(weikuangConfig.bai, weikuangConfig.shi, weikuangConfig.ge);
+    const houRanges = getHouRanges(weikuangConfig.bai, weikuangConfig.shi, weikuangConfig.ge);
+    
+    function matchesRanges(perm, ranges) {
+        return ranges.baiSet.has(perm[0]) && ranges.shiSet.has(perm[1]) && ranges.geSet.has(perm[2]);
+    }
+    
+    for (const perm of allPerms) {
+        if (weikuangConfig.mode === 'qian' || weikuangConfig.mode === 'zhong') {
+            if (matchesRanges(perm, qianRanges)) return true;
+        }
+        if (weikuangConfig.mode === 'hou' || weikuangConfig.mode === 'zhong') {
+            if (matchesRanges(perm, houRanges)) return true;
+        }
+    }
+    return false;
+}
+
+// 获取组合的范围优先级：1=前六范围, 2=后六范围, 3=不符合任何范围
+function getRangePriority(numStr, weikuangConfig, favorStr) {
+    if (!weikuangConfig || weikuangConfig.mode === 'guan') return 3;
+    
+    const allPerms = generateAllPermutations(numStr);
+    const qianRanges = getQianRanges(weikuangConfig.bai, weikuangConfig.shi, weikuangConfig.ge);
+    const houRanges = getHouRanges(weikuangConfig.bai, weikuangConfig.shi, weikuangConfig.ge);
+    
+    function matchesRanges(perm, ranges) {
+        return ranges.baiSet.has(perm[0]) && ranges.shiSet.has(perm[1]) && ranges.geSet.has(perm[2]);
+    }
+    
+    const hasQian = [...allPerms].some(p => matchesRanges(p, qianRanges));
+    const hasHou = [...allPerms].some(p => matchesRanges(p, houRanges));
+    
+    if (weikuangConfig.mode === 'qian') {
+        if (hasQian) return 1;
+        if (hasHou) return 2;
+        return 3;
+    } else if (weikuangConfig.mode === 'hou') {
+        if (hasHou) return 2;
+        if (hasQian) return 1;
+        return 3;
+    } else if (weikuangConfig.mode === 'zhong') {
+        if (hasQian || hasHou) return 1;
+        return 3;
+    }
+    return 3;
+}
+
+// 计算组合与看好排列的位置相似性得分
+function getSimilarityScore(numStr, favorStr) {
+    if (!favorStr || favorStr.length < 3) return 0;
+    
+    const allPerms = generateAllPermutations(numStr);
+    let maxScore = 0;
+    
+    for (const perm of allPerms) {
+        let score = 0;
+        if (perm[0] === favorStr[0]) score++;
+        if (perm[1] === favorStr[1]) score++;
+        if (perm[2] === favorStr[2]) score++;
+        if (score > maxScore) maxScore = score;
+    }
+    
+    return maxScore;
+}
+
+function processZuoyou(data, tiedan, duanzu, type, excludeList = [], weikuangConfig = null, favorStr = '') {
     const simaDigits = [...data.sima].sort((a,b) => a - b);
     const wumaDigits = [...data.wuma].sort((a,b) => a - b);
     const liumaDigits = [...data.liuma].sort((a,b) => a - b);
@@ -5015,16 +5152,18 @@ function processZuoyou(data, tiedan, duanzu, type, excludeList = []) {
     const used = new Set();
     const tiedanDigits = tiedan ? tiedan.split('').filter(d => /^\d$/.test(d)) : [];
     
-    const fourWithTiedan = shuffleArray(getZuoyouCombinations(simaDigits, tiedanDigits, true, used));
-    const fiveWithTiedan = wumaDigits.length >= 3 ? shuffleArray(getZuoyouCombinations(wumaDigits, tiedanDigits, true, used)) : [];
-    const sixWithTiedan = liumaDigits.length >= 3 ? shuffleArray(getZuoyouCombinations(liumaDigits, tiedanDigits, true, used)) : [];
-    const fourWithoutTiedan = shuffleArray(getZuoyouCombinations(simaDigits, tiedanDigits, false, used));
-    const fiveWithoutTiedan = wumaDigits.length >= 3 ? shuffleArray(getZuoyouCombinations(wumaDigits, tiedanDigits, false, used)) : [];
-    const sixWithoutTiedan = liumaDigits.length >= 3 ? shuffleArray(getZuoyouCombinations(liumaDigits, tiedanDigits, false, used)) : [];
+    const fourWithTiedan = getZuoyouCombinations(simaDigits, tiedanDigits, true, used);
+    const fiveWithTiedan = wumaDigits.length >= 3 ? getZuoyouCombinations(wumaDigits, tiedanDigits, true, used) : [];
+    const sixWithTiedan = liumaDigits.length >= 3 ? getZuoyouCombinations(liumaDigits, tiedanDigits, true, used) : [];
+    const fourWithoutTiedan = getZuoyouCombinations(simaDigits, tiedanDigits, false, used);
+    const fiveWithoutTiedan = wumaDigits.length >= 3 ? getZuoyouCombinations(wumaDigits, tiedanDigits, false, used) : [];
+    const sixWithoutTiedan = liumaDigits.length >= 3 ? getZuoyouCombinations(liumaDigits, tiedanDigits, false, used) : [];
+    
+    const withTiedan = [...fourWithTiedan, ...fiveWithTiedan, ...sixWithTiedan];
+    const withoutTiedan = shuffleArray([...fourWithoutTiedan, ...fiveWithoutTiedan, ...sixWithoutTiedan]);
     
     let allCandidates = [
-        ...fourWithTiedan, ...fiveWithTiedan, ...sixWithTiedan,
-        ...fourWithoutTiedan, ...fiveWithoutTiedan, ...sixWithoutTiedan
+        ...withTiedan, ...withoutTiedan
     ];
     
     if (duanzu) {
@@ -5033,9 +5172,23 @@ function processZuoyou(data, tiedan, duanzu, type, excludeList = []) {
             const firstCombo = duanzu.split(/[\s+]+/)[0];
             if (firstCombo) allCandidates = filterZuoyouByDuanzu(allCandidates, firstCombo);
         } else {
-            // 康师傅排除全部去组合
-            allCandidates = filterZuoyouByDuanzu(allCandidates, duanzu);
+            // 康师傅只排除前三组去组合（显示8组，但只排除前3组）
+            const comboArray = duanzu.split(/[\s+]+/);
+            const firstThree = comboArray.slice(0, 3).join(' ');
+            if (firstThree) allCandidates = filterZuoyouByDuanzu(allCandidates, firstThree);
         }
+    }
+    
+    // 按范围优先级+位置相似性排序
+    if (weikuangConfig && weikuangConfig.mode !== 'guan' && favorStr) {
+        allCandidates.sort((a, b) => {
+            const priorityA = getRangePriority(a, weikuangConfig);
+            const priorityB = getRangePriority(b, weikuangConfig);
+            if (priorityA !== priorityB) return priorityA - priorityB;
+            const scoreA = getSimilarityScore(a, favorStr);
+            const scoreB = getSimilarityScore(b, favorStr);
+            return scoreB - scoreA;
+        });
     }
     
     const targetCount = type === 'kangshifu' ? 17 : 19;
@@ -5130,7 +5283,7 @@ function filterZuoyouByDuanzu(combinations, duanzu) {
     });
 }
 
-function formatZuoyouResult(numbers, type, info, usedPermutations = null, weikuangConfig = null) {
+function formatZuoyouResult(numbers, type, info, usedPermutations = null, weikuangConfig = null, favorStr = '') {
     if (numbers.length === 0) return { html: '', shuffledCombinations: [] };
     
     const excludePermutations = (info && info.excludeList) ? new Set(info.excludeList) : new Set();
@@ -5138,7 +5291,17 @@ function formatZuoyouResult(numbers, type, info, usedPermutations = null, weikua
     
     const shuffledCombinations = [];
     for (let i = 0; i < numbers.length; i++) {
-        if (i === 0) {
+        if (i === 0 && favorStr) {
+            // 使用手动指定的看好号码作为第一个号码
+            shuffledCombinations.push(favorStr);
+            // 记录已使用的排列
+            if (usedPermutations) {
+                const sortedKey = numbers[i].split('').sort().join('');
+                const used = usedPermutations[sortedKey] || new Set();
+                used.add(favorStr);
+                usedPermutations[sortedKey] = used;
+            }
+        } else if (i === 0) {
             // 第一个号码正常随机，作为看好排列参考
             if (usedPermutations) {
                 shuffledCombinations.push(shuffleNumberAvoidConflict(numbers[i], usedPermutations, excludePermutations));
@@ -5147,11 +5310,11 @@ function formatZuoyouResult(numbers, type, info, usedPermutations = null, weikua
             }
         } else {
             // 后续号码用加权随机，参考第一个号码的百十个位倾向性
-            const favorStr = shuffledCombinations[0];
+            const currentFavorStr = shuffledCombinations[0];
             if (usedPermutations) {
-                shuffledCombinations.push(weightedShuffleNumberAvoidConflict(numbers[i], favorStr, favorBias, usedPermutations, excludePermutations, weikuangConfig));
+                shuffledCombinations.push(weightedShuffleNumberAvoidConflict(numbers[i], currentFavorStr, favorBias, usedPermutations, excludePermutations, weikuangConfig));
             } else {
-                shuffledCombinations.push(weightedShuffleNumber(numbers[i], favorStr, favorBias));
+                shuffledCombinations.push(weightedShuffleNumber(numbers[i], currentFavorStr, favorBias));
             }
         }
     }
@@ -5365,16 +5528,27 @@ function weightedShuffleNumberAvoidConflict(numStr, favorStr, favorBias, usedPer
         );
     }
     
-    // 在符合范围的排列中按加权倾向选
+    // 在符合范围的排列中按与看好号码的整体相似度排序选择（百、十、个位都考虑）
     function pickFromValid(validPerms) {
         if (validPerms.length === 0) return null;
-        const favorBiasForRange = 1;
-        const favorBai = favorStr[0], favorShi = favorStr[1];
-        const favored = validPerms.filter(p => p[0] === favorBai && p[1] === favorShi);
-        if (favored.length > 0 && Math.random() < favorBiasForRange) {
-            return favored[Math.floor(Math.random() * favored.length)];
-        }
-        return validPerms[Math.floor(Math.random() * validPerms.length)];
+        const favorBai = favorStr[0], favorShi = favorStr[1], favorGe = favorStr[2];
+
+        // 计算每个排列与看好号码的匹配得分（百+十+个）
+        const scoredPerms = validPerms.map(p => {
+            let score = 0;
+            if (p[0] === favorBai) score++;
+            if (p[1] === favorShi) score++;
+            if (p[2] === favorGe) score++;
+            return { perm: p, score };
+        });
+
+        // 按得分降序排序
+        scoredPerms.sort((a, b) => b.score - a.score);
+
+        // 优先选得分最高的（同分随机）
+        const maxScore = scoredPerms[0].score;
+        const bestPerms = scoredPerms.filter(item => item.score === maxScore);
+        return bestPerms[Math.floor(Math.random() * bestPerms.length)].perm;
     }
     
     let result = null;
@@ -5489,7 +5663,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // 给作业区输入框添加自动保存
-    const zuoyouInputs = ['zuoyou1', 'zuoyou2', 'zuoyou3', 'tiedan1', 'tiedan2', 'tiedan3', 'duanzu1', 'duanzu2', 'duanzu3', 'weikuangBai', 'weikuangShi', 'weikuangGe'];
+    const zuoyouInputs = ['zuoyou1', 'zuoyou2', 'zuoyou3', 'tiedan1', 'tiedan2', 'tiedan3', 'duanzu1', 'duanzu2', 'duanzu3', 'favor1', 'favor2', 'favor3', 'weikuangBai', 'weikuangShi', 'weikuangGe'];
     zuoyouInputs.forEach(id => {
         const el = document.getElementById(id);
         if (el) {

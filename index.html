@@ -4997,11 +4997,12 @@ function expandZuoyou() {
     let totalCount = 0;
     
     const usedPermutations = {};
+    const globalUsedPerms = new Set(); // 全局已用排列，跨组选去重
     
     if (zuoyou1) {
         const data1 = parseZuoyouInput(zuoyou1);
         const result1 = processZuoyou(data1, tiedan1, duanzu1, 'kangshifu', excludeList, weikuangConfig, favor1, weizhiKillConfig);
-        const fmt1 = formatZuoyouResult(result1.combinations, 'kangshifu', result1.info, usedPermutations, weikuangConfig, favor1, weizhiKillConfig);
+        const fmt1 = formatZuoyouResult(result1.combinations, 'kangshifu', result1.info, usedPermutations, weikuangConfig, favor1, weizhiKillConfig, globalUsedPerms);
         document.getElementById('zuoyou1Numbers').innerHTML = fmt1.html;
         zuoyouResultsData[1] = { type: 'kangshifu', combinations: result1.combinations, shuffledCombinations: fmt1.shuffledCombinations, info: result1.info };
         totalCount += result1.combinations.length;
@@ -5013,7 +5014,7 @@ function expandZuoyou() {
     if (zuoyou2) {
         const data2 = parseZuoyouInput(zuoyou2);
         const result2 = processZuoyou(data2, tiedan2, duanzu2, 'laoyang', excludeList, weikuangConfig, favor2, weizhiKillConfig);
-        const fmt2 = formatZuoyouResult(result2.combinations, 'laoyang', result2.info, usedPermutations, weikuangConfig, favor2, weizhiKillConfig);
+        const fmt2 = formatZuoyouResult(result2.combinations, 'laoyang', result2.info, usedPermutations, weikuangConfig, favor2, weizhiKillConfig, globalUsedPerms);
         document.getElementById('zuoyou2Numbers').innerHTML = fmt2.html;
         zuoyouResultsData[2] = { type: 'laoyang', combinations: result2.combinations, shuffledCombinations: fmt2.shuffledCombinations, info: result2.info };
         totalCount += result2.combinations.length;
@@ -5025,7 +5026,7 @@ function expandZuoyou() {
     if (zuoyou3) {
         const data3 = parseZuoyouInput(zuoyou3);
         const result3 = processZuoyou(data3, tiedan3, duanzu3, 'mingjiang', excludeList, weikuangConfig, favor3, weizhiKillConfig);
-        const fmt3 = formatZuoyouResult(result3.combinations, 'mingjiang', result3.info, usedPermutations, weikuangConfig, favor3, weizhiKillConfig);
+        const fmt3 = formatZuoyouResult(result3.combinations, 'mingjiang', result3.info, usedPermutations, weikuangConfig, favor3, weizhiKillConfig, globalUsedPerms);
         document.getElementById('zuoyou3Numbers').innerHTML = fmt3.html;
         zuoyouResultsData[3] = { type: 'mingjiang', combinations: result3.combinations, shuffledCombinations: fmt3.shuffledCombinations, info: result3.info };
         totalCount += result3.combinations.length;
@@ -5454,7 +5455,7 @@ function filterZuoyouByDuanzu(combinations, duanzu) {
     });
 }
 
-function formatZuoyouResult(numbers, type, info, usedPermutations = null, weikuangConfig = null, favorStr = '', weizhiKillConfig = null) {
+function formatZuoyouResult(numbers, type, info, usedPermutations = null, weikuangConfig = null, favorStr = '', weizhiKillConfig = null, globalUsedPerms = null) {
     if (numbers.length === 0) return { html: '', shuffledCombinations: [] };
     
     const excludePermutations = (info && info.excludeList) ? new Set(info.excludeList) : new Set();
@@ -5472,10 +5473,11 @@ function formatZuoyouResult(numbers, type, info, usedPermutations = null, weikua
                 used.add(favorStr);
                 usedPermutations[sortedKey] = used;
             }
+            if (globalUsedPerms) globalUsedPerms.add(favorStr);
         } else if (i === 0) {
             // 第一个号码正常随机，作为看好排列参考
             if (usedPermutations) {
-                shuffledCombinations.push(shuffleNumberAvoidConflict(numbers[i], usedPermutations, excludePermutations));
+                shuffledCombinations.push(shuffleNumberAvoidConflict(numbers[i], usedPermutations, excludePermutations, globalUsedPerms));
             } else {
                 shuffledCombinations.push(shuffleNumber(numbers[i]));
             }
@@ -5483,7 +5485,7 @@ function formatZuoyouResult(numbers, type, info, usedPermutations = null, weikua
             // 后续号码用加权随机，参考第一个号码的百十个位倾向性
             const currentFavorStr = shuffledCombinations[0];
             if (usedPermutations) {
-                shuffledCombinations.push(weightedShuffleNumberAvoidConflict(numbers[i], currentFavorStr, favorBias, usedPermutations, excludePermutations, weikuangConfig, weizhiKillConfig));
+                shuffledCombinations.push(weightedShuffleNumberAvoidConflict(numbers[i], currentFavorStr, favorBias, usedPermutations, excludePermutations, weikuangConfig, weizhiKillConfig, globalUsedPerms));
             } else {
                 shuffledCombinations.push(weightedShuffleNumber(numbers[i], currentFavorStr, favorBias));
             }
@@ -5598,7 +5600,7 @@ function shuffleNumber(numStr) {
     return digits.join('');
 }
 
-function shuffleNumberAvoidConflict(numStr, usedPermutations, excludePermutations) {
+function shuffleNumberAvoidConflict(numStr, usedPermutations, excludePermutations, globalUsedPerms = null) {
     const sortedKey = numStr.split('').sort().join('');
     const used = usedPermutations[sortedKey] || new Set();
     const excludeSet = excludePermutations || new Set();
@@ -5606,13 +5608,14 @@ function shuffleNumberAvoidConflict(numStr, usedPermutations, excludePermutation
     let result = shuffleNumber(numStr);
     let attempts = 0;
     
-    while ((used.has(result) || excludeSet.has(result)) && attempts < 20) {
+    while ((used.has(result) || excludeSet.has(result) || (globalUsedPerms && globalUsedPerms.has(result))) && attempts < 20) {
         result = shuffleNumber(numStr);
         attempts++;
     }
     
     used.add(result);
     usedPermutations[sortedKey] = used;
+    if (globalUsedPerms) globalUsedPerms.add(result);
     return result;
 }
 
@@ -5669,7 +5672,7 @@ function weightedShuffleNumber(numStr, favorStr, favorBias = 1) {
     return baiwei + shiwei + gewei;
 }
 
-function weightedShuffleNumberAvoidConflict(numStr, favorStr, favorBias, usedPermutations, excludePermutations, weikuangConfig, weizhiKillConfig = null) {
+function weightedShuffleNumberAvoidConflict(numStr, favorStr, favorBias, usedPermutations, excludePermutations, weikuangConfig, weizhiKillConfig = null, globalUsedPerms = null) {
     const sortedKey = numStr.split('').sort().join('');
     const used = usedPermutations[sortedKey] || new Set();
     const excludeSet = excludePermutations || new Set();
@@ -5683,16 +5686,22 @@ function weightedShuffleNumberAvoidConflict(numStr, favorStr, favorBias, usedPer
         return true;
     }
     
+    // 检查排列是否已被使用（含全局去重）
+    function isUsed(perm) {
+        return used.has(perm) || excludeSet.has(perm) || (globalUsedPerms && globalUsedPerms.has(perm));
+    }
+    
     // 没有位框配置或关模式：正常加权随机（带位置杀号过滤）
     if (!weikuangConfig || weikuangConfig.mode === 'guan') {
         let result = weightedShuffleNumber(numStr, favorStr, favorBias);
         let attempts = 0;
-        while ((used.has(result) || excludeSet.has(result) || !matchesWeizhiKill(result)) && attempts < 50) {
+        while ((isUsed(result) || !matchesWeizhiKill(result)) && attempts < 50) {
             result = weightedShuffleNumber(numStr, favorStr, favorBias);
             attempts++;
         }
         used.add(result);
         usedPermutations[sortedKey] = used;
+        if (globalUsedPerms) globalUsedPerms.add(result);
         return result;
     }
     
@@ -5700,11 +5709,11 @@ function weightedShuffleNumberAvoidConflict(numStr, favorStr, favorBias, usedPer
     const qianRanges = getQianRanges(weikuangConfig.bai, weikuangConfig.shi, weikuangConfig.ge);
     const houRanges = getHouRanges(weikuangConfig.bai, weikuangConfig.shi, weikuangConfig.ge);
     
-    // 在排列列表中按ranges筛选（带位置杀号）
+    // 在排列列表中按ranges筛选（带位置杀号和全局去重）
     function filterByRanges(perms, ranges) {
         return perms.filter(p => 
             ranges.baiSet.has(p[0]) && ranges.shiSet.has(p[1]) && ranges.geSet.has(p[2]) &&
-            !used.has(p) && !excludeSet.has(p) && matchesWeizhiKill(p)
+            !isUsed(p) && matchesWeizhiKill(p)
         );
     }
     
@@ -5765,15 +5774,15 @@ function weightedShuffleNumberAvoidConflict(numStr, favorStr, favorBias, usedPer
         result = weightedShuffleNumber(numStr, favorStr, favorBias);
         let attempts = 0;
         // 先尝试严格位置杀号
-        while ((used.has(result) || excludeSet.has(result) || !matchesWeizhiKill(result)) && attempts < 30) {
+        while ((isUsed(result) || !matchesWeizhiKill(result)) && attempts < 30) {
             result = weightedShuffleNumber(numStr, favorStr, favorBias);
             attempts++;
         }
         // 如果严格模式找不到，放宽位置杀号（允许出现在被排除位置）
-        if ((used.has(result) || excludeSet.has(result) || !matchesWeizhiKill(result))) {
+        if (isUsed(result) || !matchesWeizhiKill(result)) {
             result = weightedShuffleNumber(numStr, favorStr, favorBias);
             attempts = 0;
-            while ((used.has(result) || excludeSet.has(result)) && attempts < 30) {
+            while (isUsed(result) && attempts < 30) {
                 result = weightedShuffleNumber(numStr, favorStr, favorBias);
                 attempts++;
             }
@@ -5782,6 +5791,7 @@ function weightedShuffleNumberAvoidConflict(numStr, favorStr, favorBias, usedPer
     
     used.add(result);
     usedPermutations[sortedKey] = used;
+    if (globalUsedPerms) globalUsedPerms.add(result);
     return result;
 }
 

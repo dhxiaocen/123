@@ -1439,6 +1439,18 @@
                 <button class="btn btn-secondary" style="flex: 1;" onclick="clearResults()">🗑️ 结果清空</button>
             </div>
 
+            <!-- 复制格式配置 -->
+            <div style="margin-top: 6px; padding: 6px 8px; background: rgba(16, 185, 129, 0.05); border-radius: 6px; border: 1px solid rgba(16, 185, 129, 0.3); display: flex; align-items: center; gap: 8px;">
+                <button type="button" class="btn btn-secondary" style="width: auto; padding: 2px 8px; font-size: 11px; height: 24px; border-radius: 6px;" id="copyFormatFoldToggle" onclick="toggleCopyFormatFold()">▼</button>
+                <div id="copyFormatContent" style="display: flex; align-items: center; gap: 8px;">
+                    <label style="font-weight: 600; color: #333; white-space: nowrap; font-size: 13px;">分隔符：</label>
+                    <input type="text" id="copyFormatSep" class="input-xiaomi" style="width: 80px; height: 32px; font-size: 15px; padding: 0 8px; text-align: center;" placeholder="空格" oninput="saveCopyFormat()" onkeydown="if(event.key==='Enter'){this.blur();}">
+                    <label style="font-weight: 600; color: #333; white-space: nowrap; font-size: 13px; margin-left: 6px;">每行：</label>
+                    <input type="text" id="copyFormatPerLine" class="input-xiaomi" style="width: 80px; height: 32px; font-size: 15px; padding: 0 8px; text-align: center;" placeholder="10" oninput="saveCopyFormat()" onkeydown="if(event.key==='Enter'){this.blur();}">
+                    <span style="font-size: 12px; color: #999;">注</span>
+                </div>
+            </div>
+
             <div id="errorDisplay" style="display: none; background: rgba(239, 68, 68, 0.2); border: 1px solid #ef4444; border-radius: 8px; padding: 12px; margin-top: 12px;">
                 <div style="color: #ef4444; font-weight: 600; margin-bottom: 8px;">❌ 配置格式错误</div>
                 <div id="errorContent" style="color: #fff; font-size: 13px;"></div>
@@ -4461,8 +4473,10 @@ function displayResults(numbers) {
 function copyResults() {
     if (currentResults.length === 0) { alert('没有结果可复制'); return; }
     let text = '';
-    for (let i = 0; i < currentResults.length; i += 10) {
-        text += currentResults.slice(i, i + 10).join(' ') + '\n';
+    const sep = copyFormat.sep;
+    const perLine = copyFormat.perLine;
+    for (let i = 0; i < currentResults.length; i += perLine) {
+        text += currentResults.slice(i, i + perLine).join(sep) + '\n';
     }
     text += '共' + currentResults.length + '注';
     navigator.clipboard.writeText(text.trim()).then(() => alert('复制成功！'));
@@ -5070,44 +5084,342 @@ function expandZuoyou() {
     const usedPermutations = {};
     const globalUsedPerms = new Set(); // 全局已用排列，跨组选去重
     
+    // 先收集三个作业的原始数据，统一生成（因为康师傅需要老洋名将的组选信息）
+    let result1 = null, result2 = null, result3 = null;
+    let fmt1 = null, fmt2 = null, fmt3 = null;
+    let data1 = null, data2 = null, data3 = null;
+    
     if (zuoyou1) {
-        const data1 = parseZuoyouInput(zuoyou1);
-        const result1 = processZuoyou(data1, tiedan1, duanzu1, 'kangshifu', excludeList, weikuangConfig, favor1, weizhiKillConfig);
-        const fmt1 = formatZuoyouResult(result1.combinations, 'kangshifu', result1.info, usedPermutations, weikuangConfig, favor1, weizhiKillConfig, globalUsedPerms);
-        document.getElementById('zuoyou1Numbers').innerHTML = fmt1.html;
+        data1 = parseZuoyouInput(zuoyou1);
+        result1 = processZuoyou(data1, tiedan1, duanzu1, 'kangshifu', excludeList, weikuangConfig, favor1, weizhiKillConfig);
+    }
+    if (zuoyou2) {
+        data2 = parseZuoyouInput(zuoyou2);
+        result2 = processZuoyou(data2, tiedan2, duanzu2, 'laoyang', excludeList, weikuangConfig, favor2, weizhiKillConfig);
+    }
+    if (zuoyou3) {
+        data3 = parseZuoyouInput(zuoyou3);
+        result3 = processZuoyou(data3, tiedan3, duanzu3, 'mingjiang', excludeList, weikuangConfig, favor3, weizhiKillConfig);
+    }
+    
+    // ===== 康师傅特殊处理：5注去除+组三替换+去组合附加 =====
+    if (result1 && result1.info && result1.combinations.length >= 17) {
+        const tiedanDigits = tiedan1 ? tiedan1.split('').filter(d => /^\d$/.test(d)) : [];
+        const tiedan = tiedanDigits.length > 0 ? tiedanDigits[0] : '';
+        const simaDigits = [...data1.sima].sort((a,b) => a - b);
+        
+        // 先调用 formatZuoyouResult 拿到原始17注排列（带单挑/加权逻辑）
+        fmt1 = formatZuoyouResult(result1.combinations, 'kangshifu', result1.info, usedPermutations, weikuangConfig, favor1, weizhiKillConfig, globalUsedPerms);
+        const originalPerms = fmt1.shuffledCombinations.slice(); // 17注完整排列
+        
+        // 取老洋和名将的组选key集合，用于"撞组选"判断
+        const lyKeys = result2 ? comboKeysSet(result2.combinations) : new Set();
+        const mjKeys = result3 ? comboKeysSet(result3.combinations) : new Set();
+        
+        // 计算四五码组选来源集合
+        const simaKeys = comboKeysSet(getZuoyouCombinations(simaDigits, tiedanDigits, true, new Set()));
+        const wumaDigits = [...data1.wuma].sort((a,b) => a - b);
+        const wumaKeys = wumaDigits.length >= 3 ? comboKeysSet(getZuoyouCombinations(wumaDigits, tiedanDigits, true, new Set())) : new Set();
+        const liumaDigits = [...data1.liuma].sort((a,b) => a - b);
+        const liumaKeys = liumaDigits.length >= 3 ? comboKeysSet(getZuoyouCombinations(liumaDigits, tiedanDigits, true, new Set())) : new Set();
+        
+        // 对17注中"防止出现"部分（索引12~16），也就是最后5注，计算去除优先级
+        // 这里改为对全部17注进行去除评分，但前面单挑和精挑细选的豁免权更高？
+        // 按用户要求：只从防止出现的5注里替换。但用户说"删掉额外的五注号码"，
+        // 所以实际是从全部17注中挑5注最应该去掉的，放到去组合里，然后补5注组三到防止出现。
+        // 根据："不含胆码（优先6码到5码排除）且和老洋或者名将有相同组选的号码"
+        
+        // 对全部17注进行评分
+        const scored = originalPerms.map((p, idx) => {
+            const protected_ = isKangshifuProtected(p, tiedan, weikuangConfig, favor1);
+            const key = p.split('').sort().join('');
+            const isZuSan = isZuSanComboKey(key);
+            const score = calcKangshifuRemoveScore(p, tiedan, lyKeys, mjKeys, weikuangConfig, favor1, simaKeys, wumaKeys, liumaKeys);
+            return { perm: p, idx, score, protected: protected_, isZuSan, key };
+        });
+        
+        // 去除候选：1) 非组三 2) 非protected 3) 按score降序 4) score相同则idx大的优先（防止出现区域优先）
+        const candidates = scored
+            .filter(s => !s.isZuSan && !s.protected)
+            .sort((a, b) => {
+                if (b.score !== a.score) return b.score - a.score;
+                return b.idx - a.idx; // 后面的（防止出现区域）优先去除
+            });
+        
+        // 选5注要去除的
+        let toRemove = candidates.slice(0, 5);
+        // 如果不够5注，放宽条件（去掉protected）
+        if (toRemove.length < 5) {
+            const more = scored
+                .filter(s => !s.isZuSan && !toRemove.find(x => x.idx === s.idx))
+                .sort((a, b) => {
+                    if (b.score !== a.score) return b.score - a.score;
+                    return b.idx - a.idx;
+                });
+            toRemove = [...toRemove, ...more].slice(0, 5);
+        }
+        
+        // 如果还不够5注（极端情况），直接取最后5注
+        if (toRemove.length < 5) {
+            const existing = new Set(toRemove.map(x => x.idx));
+            for (let i = originalPerms.length - 1; i >= 0 && toRemove.length < 5; i--) {
+                if (!existing.has(i) && !isZuSanComboKey(originalPerms[i].split('').sort().join(''))) {
+                    toRemove.push(scored[i]);
+                }
+            }
+        }
+        
+        // 记录去除的索引，按idx降序splice
+        const removeIdxs = toRemove.map(x => x.idx).sort((a,b) => b - a);
+        const removedPermsDisplay = []; // 同组选排列都要列出
+        const removedKeys = new Set();
+        for (const r of toRemove) {
+            if (!removedKeys.has(r.key)) {
+                removedKeys.add(r.key);
+                // 找到originalPerms中所有与r同组选的排列（用户要求：130与301都要写出）
+                const same = findSameZuoxuanPerms(r.perm, originalPerms);
+                removedPermsDisplay.push(...same);
+            }
+        }
+        
+        // 从原始17注中去除这5注
+        let newPerms = originalPerms.slice();
+        for (const idx of removeIdxs) {
+            newPerms.splice(idx, 1);
+        }
+        // newPerms现在是12注
+        
+        // 生成5注含胆组三排列
+        const zuSanKeys = generateTiedanZuSanKeys(simaDigits, tiedan);
+        // 打乱并选5个
+        const shuffledZuSanKeys = shuffleArray(zuSanKeys).slice(0, 5);
+        // 如果不够5个（四码太少），补胆相关其他
+        while (shuffledZuSanKeys.length < 5) {
+            // 补胆胆+其他码的重复
+            const fallback = [tiedan, tiedan, tiedan].join('');
+            if (!shuffledZuSanKeys.includes(fallback)) shuffledZuSanKeys.push(fallback);
+            else break;
+        }
+        
+        // 把组三key转换成排列，同时加入 usedPermutations 和 globalUsedPerms 去重
+        const zuSanPerms = [];
+        const excludePerms = (result1.info && result1.info.excludeList) ? new Set(result1.info.excludeList) : new Set();
+        for (const zsKey of shuffledZuSanKeys) {
+            if (zuSanPerms.length >= 5) break;
+            // zsKey是组选key形式如 044，需转成排列并去重
+            const sortedKey = zsKey.split('').sort().join('');
+            const used = usedPermutations[sortedKey] || new Set();
+            let perm = shuffleNumber(zsKey);
+            let attempts = 0;
+            while ((used.has(perm) || excludePerms.has(perm) || globalUsedPerms.has(perm)) && attempts < 20) {
+                perm = shuffleNumber(zsKey);
+                attempts++;
+            }
+            // 遍历兜底
+            if (used.has(perm) || excludePerms.has(perm) || globalUsedPerms.has(perm)) {
+                const allP = generateAllPermutations(zsKey);
+                const found = allP.find(p => !used.has(p) && !excludePerms.has(p) && !globalUsedPerms.has(p));
+                if (found) perm = found;
+            }
+            used.add(perm);
+            usedPermutations[sortedKey] = used;
+            globalUsedPerms.add(perm);
+            zuSanPerms.push(perm);
+        }
+        
+        // 凑齐5注
+        while (zuSanPerms.length < 5) {
+            zuSanPerms.push(tiedan + tiedan + tiedan);
+        }
+        
+        // 把组三追加到 newPerms 作为"防止出现"部分（位置12~16）
+        newPerms = newPerms.concat(zuSanPerms);
+        
+        // 更新 shuffledCombinations
+        fmt1.shuffledCombinations = newPerms;
+        
+        // 构建去组合显示字符串，直接写入 duanzu1 输入框
+        // 原 duanzu1（用户输入的去组合）保留，然后加 " - " 和被去除的5注
+        const originalDuanzuDisplay = (duanzu1 || '').trim();
+        const removedDisplayStr = removedPermsDisplay.join(' ');
+        let duanzuDisplay = originalDuanzuDisplay;
+        if (removedDisplayStr) {
+            duanzuDisplay = originalDuanzuDisplay
+                ? (originalDuanzuDisplay + ' - ' + removedDisplayStr)
+                : removedDisplayStr;
+        }
+        // 写回 duanzu1 输入框（页面上方的配置框）
+        const duanzu1El = document.getElementById('duanzu1');
+        if (duanzu1El) duanzu1El.value = duanzuDisplay;
+        // 挂到 info 上备用
+        result1.info.duanzuDisplay = duanzuDisplay;
+        result1.info.removedPermsDisplay = removedPermsDisplay;
+        
+        zuoyouResultsData[1] = {
+            type: 'kangshifu',
+            combinations: result1.combinations,
+            shuffledCombinations: newPerms,
+            info: result1.info
+        };
+        totalCount += result1.combinations.length;
+    } else if (result1) {
+        // 康师傅无特殊处理
+        fmt1 = formatZuoyouResult(result1.combinations, 'kangshifu', result1.info, usedPermutations, weikuangConfig, favor1, weizhiKillConfig, globalUsedPerms);
         zuoyouResultsData[1] = { type: 'kangshifu', combinations: result1.combinations, shuffledCombinations: fmt1.shuffledCombinations, info: result1.info };
         totalCount += result1.combinations.length;
     } else {
         zuoyouResultsData[1] = null;
-        document.getElementById('zuoyou1Numbers').innerHTML = '';
     }
     
-    if (zuoyou2) {
-        const data2 = parseZuoyouInput(zuoyou2);
-        const result2 = processZuoyou(data2, tiedan2, duanzu2, 'laoyang', excludeList, weikuangConfig, favor2, weizhiKillConfig);
-        const fmt2 = formatZuoyouResult(result2.combinations, 'laoyang', result2.info, usedPermutations, weikuangConfig, favor2, weizhiKillConfig, globalUsedPerms);
-        document.getElementById('zuoyou2Numbers').innerHTML = fmt2.html;
+    // ===== 老洋（组三不参与，逻辑保持不变）=====
+    if (result2) {
+        fmt2 = formatZuoyouResult(result2.combinations, 'laoyang', result2.info, usedPermutations, weikuangConfig, favor2, weizhiKillConfig, globalUsedPerms);
         zuoyouResultsData[2] = { type: 'laoyang', combinations: result2.combinations, shuffledCombinations: fmt2.shuffledCombinations, info: result2.info };
         totalCount += result2.combinations.length;
     } else {
         zuoyouResultsData[2] = null;
-        document.getElementById('zuoyou2Numbers').innerHTML = '';
     }
     
-    if (zuoyou3) {
-        const data3 = parseZuoyouInput(zuoyou3);
-        const result3 = processZuoyou(data3, tiedan3, duanzu3, 'mingjiang', excludeList, weikuangConfig, favor3, weizhiKillConfig);
-        const fmt3 = formatZuoyouResult(result3.combinations, 'mingjiang', result3.info, usedPermutations, weikuangConfig, favor3, weizhiKillConfig, globalUsedPerms);
-        document.getElementById('zuoyou3Numbers').innerHTML = fmt3.html;
+    // ===== 名将 =====
+    if (result3) {
+        fmt3 = formatZuoyouResult(result3.combinations, 'mingjiang', result3.info, usedPermutations, weikuangConfig, favor3, weizhiKillConfig, globalUsedPerms);
         zuoyouResultsData[3] = { type: 'mingjiang', combinations: result3.combinations, shuffledCombinations: fmt3.shuffledCombinations, info: result3.info };
         totalCount += result3.combinations.length;
     } else {
         zuoyouResultsData[3] = null;
+    }
+    
+    // ===== 渲染HTML =====
+    if (fmt1) {
+        // 如果进行了特殊处理（组三替换），按新的 shuffledCombinations 重新按标准格式渲染号码
+        if (zuoyouResultsData[1] && zuoyouResultsData[1].info && zuoyouResultsData[1].info.duanzuDisplay) {
+            const reFmt = renderKangshifuStandard(zuoyouResultsData[1]);
+            document.getElementById('zuoyou1Numbers').innerHTML = reFmt.html;
+        } else {
+            document.getElementById('zuoyou1Numbers').innerHTML = fmt1.html;
+        }
+    } else {
+        document.getElementById('zuoyou1Numbers').innerHTML = '';
+    }
+    if (fmt2) {
+        document.getElementById('zuoyou2Numbers').innerHTML = fmt2.html;
+    } else {
+        document.getElementById('zuoyou2Numbers').innerHTML = '';
+    }
+    if (fmt3) {
+        document.getElementById('zuoyou3Numbers').innerHTML = fmt3.html;
+    } else {
         document.getElementById('zuoyou3Numbers').innerHTML = '';
     }
     
     zuoyouResultsData[0] = usedPermutations;
     document.getElementById('zuoyouStats').innerHTML = '组六总数：' + totalCount + ' 注';
+}
+
+// 康师傅标准格式渲染：只显示胆/飞/四/五/六/七 + 号码，不再附加去组合行
+function renderKangshifuStandard(resultData) {
+    const info = resultData.info;
+    const nums = resultData.shuffledCombinations;
+    let html = '';
+    html += `<div style="font-weight: bold; margin-bottom: 10px; color: #e94560;"></div>`;
+    html += `<div>${info.tiedan || ''}</div>`;
+    html += `<div>${info.twoCombinations.length > 0 ? info.twoCombinations.join(' ') : ''}</div>`;
+    html += `<div>${info.sima || ''}</div>`;
+    html += `<div>${info.wuma || ''}</div>`;
+    html += `<div>${info.liuma || ''}</div>`;
+    html += `<div>${info.qima || ''}</div>`;
+    
+    html += '<br>';
+    
+    const part1 = nums.slice(0, 2);
+    const part2 = nums.slice(2, 7);
+    const part3 = nums.slice(7, 12);
+    const part4 = nums.slice(12, 17);
+    
+    html += `<div>${part1.join(' ')}</div>`;
+    html += `<div>精挑细选：</div>`;
+    html += `<div>${part2.join(' ')}</div>`;
+    html += `<div>${part3.join(' ')}</div>`;
+    html += `<div>防止出现：</div>`;
+    html += `<div>${part4.join(' ')}</div>`;
+    
+    return { html, shuffledCombinations: nums };
+}
+
+// === 复制格式配置 ===
+let copyFormat = { sep: ' ', perLine: 5 };
+
+// 折叠/展开
+function toggleCopyFormatFold() {
+    const content = document.getElementById('copyFormatContent');
+    const toggle = document.getElementById('copyFormatFoldToggle');
+    const isHidden = content.style.display === 'none';
+    content.style.display = isHidden ? 'flex' : 'none';
+    toggle.textContent = isHidden ? '▲' : '▼';
+    localStorage.setItem('复制格式_折叠', isHidden ? 'true' : 'false');
+}
+
+function loadCopyFormatFoldState() {
+    const saved = localStorage.getItem('复制格式_折叠');
+    const content = document.getElementById('copyFormatContent');
+    const toggle = document.getElementById('copyFormatFoldToggle');
+    if (saved === 'true') {
+        content.style.display = 'flex';
+        toggle.textContent = '▲';
+    }
+}
+
+// 保存复制格式到 localStorage（输入框 oninput 时触发）
+function saveCopyFormat() {
+    const sepInput = document.getElementById('copyFormatSep');
+    const perLineInput = document.getElementById('copyFormatPerLine');
+    if (sepInput) {
+        // 输入框为空时默认空格
+        copyFormat.sep = sepInput.value !== '' ? sepInput.value : ' ';
+    }
+    if (perLineInput) {
+        const val = parseInt(perLineInput.value);
+        if (!isNaN(val) && val > 0) {
+            copyFormat.perLine = val;
+        }
+    }
+    localStorage.setItem('复制格式', JSON.stringify(copyFormat));
+}
+
+// 从 localStorage 恢复格式到输入框
+function loadCopyFormat() {
+    const saved = localStorage.getItem('复制格式');
+    if (saved) {
+        try {
+            copyFormat = JSON.parse(saved);
+        } catch(e) {}
+    }
+    const sepInput = document.getElementById('copyFormatSep');
+    const perLineInput = document.getElementById('copyFormatPerLine');
+    // 分隔符：空格时不显示在输入框里（placeholder 提示"空格"）
+    if (sepInput) {
+        sepInput.value = (copyFormat.sep === ' ') ? '' : copyFormat.sep;
+    }
+    if (perLineInput) {
+        perLineInput.value = copyFormat.perLine;
+    }
+}
+
+// 格式化号码数组：按配置的分隔符和每行注数分组输出
+function formatNums(nums) {
+    if (!nums || nums.length === 0) return '';
+    const sep = copyFormat.sep;
+    const perLine = copyFormat.perLine;
+    const lines = [];
+    for (let i = 0; i < nums.length; i += perLine) {
+        lines.push(nums.slice(i, i + perLine).join(sep));
+    }
+    return lines.join('\n');
+}
+
+// 作业区复制用：固定空格分隔，不受筛号格式影响
+function joinSpace(nums) {
+    return nums.join(' ');
 }
 
 function copyZuoyouResult(index) {
@@ -5141,10 +5453,10 @@ function copyZuoyouResult(index) {
         
         text += '单挑二注：(' + part1.join(' ') + ')\n';
         text += '精挑细选：\n';
-        text += '' + part2.join(' ') + '\n';
-        text += '' + part3.join(' ') + '\n';
+        text += part2.join(' ') + '\n';
+        text += part3.join(' ') + '\n';
         text += '防止出现：\n';
-        text += '' + part4.join(' ') + '\n';
+        text += part4.join(' ') + '\n';
     } else if (result.type === 'laoyang') {
         const now = new Date();
         const dateStr = `${now.getFullYear()}.${now.getMonth() + 1}.${now.getDate()}`;
@@ -5163,11 +5475,11 @@ function copyZuoyouResult(index) {
         text += '五：' + (result.info && result.info.wuma || '') + ' 防对\n';
         text += '六：' + (result.info && result.info.liuma || '') + ' 防对\n';
         text += '精挑细选：\n';
-        text += '' + part3.join(' ') + '\n';
+        text += part3.join(' ') + '\n';
         text += '单挑直组：\n';
-        text += '' + part4.join(' ') + '\n';
+        text += part4.join(' ') + '\n';
         text += '防止出现：\n';
-        text += '' + part5.join(' ') + '\n';
+        text += part5.join(' ') + '\n';
     } else {
         const now = new Date();
         const dateStr = `${now.getFullYear()}.${now.getMonth() + 1}.${now.getDate()}`;
@@ -5185,11 +5497,11 @@ function copyZuoyouResult(index) {
         text += '五：' + (result.info && result.info.wuma || '') + ' 防对\n';
         text += '六：' + (result.info && result.info.liuma || '') + ' 防对\n';
         text += '精挑细选：\n';
-        text += '' + part3.join(' ') + '\n';
+        text += part3.join(' ') + '\n';
         text += '单挑直组：\n';
-        text += '' + part4.join(' ') + '\n';
+        text += part4.join(' ') + '\n';
         text += '单挑直组：\n';
-        text += '' + part5.join(' ') + '\n';
+        text += part5.join(' ') + '\n';
     }
     
     // 复制到剪贴板
@@ -5229,10 +5541,10 @@ function copyAllZuoyouResults() {
             
             content += '单挑二注：(' + part1.join(' ') + ')\n';
             content += '精挑细选：\n';
-            content += '' + part2.join(' ') + '\n';
-            content += '' + part3.join(' ') + '\n';
+            content += part2.join(' ') + '\n';
+            content += part3.join(' ') + '\n';
             content += '防止出现：\n';
-            content += '' + part4.join(' ') + '\n';
+            content += part4.join(' ') + '\n';
         } else if (result.type === 'laoyang') {
             content += '独：' + (result.info && result.info.tiedan || '') + '\n';
             content += '飞：' + ((result.info && result.info.twoCombinations && result.info.twoCombinations.length > 0) ? result.info.twoCombinations.join(' ') : '') + '\n';
@@ -5248,11 +5560,11 @@ function copyAllZuoyouResults() {
             content += '五：' + (result.info && result.info.wuma || '') + ' 防对\n';
             content += '六：' + (result.info && result.info.liuma || '') + ' 防对\n';
             content += '精挑细选：\n';
-            content += '' + part3.join(' ') + '\n';
+            content += part3.join(' ') + '\n';
             content += '单挑直组：\n';
-            content += '' + part4.join(' ') + '\n';
+            content += part4.join(' ') + '\n';
             content += '防止出现：\n';
-            content += '' + part5.join(' ') + '\n';
+            content += part5.join(' ') + '\n';
         } else {
             content += '胆：' + (result.info && result.info.tiedan || '') + '\n';
             
@@ -5267,11 +5579,11 @@ function copyAllZuoyouResults() {
             content += '五：' + (result.info && result.info.wuma || '') + ' 防对\n';
             content += '六：' + (result.info && result.info.liuma || '') + ' 防对\n';
             content += '精挑细选：\n';
-            content += '' + part3.join(' ') + '\n';
+            content += part3.join(' ') + '\n';
             content += '单挑直组：\n';
-            content += '' + part4.join(' ') + '\n';
+            content += part4.join(' ') + '\n';
             content += '单挑直组：\n';
-            content += '' + part5.join(' ') + '\n';
+            content += part5.join(' ') + '\n';
         }
         
         allTexts.push(content);
@@ -5926,6 +6238,94 @@ function generateAllPermutations(numStr) {
     return [...result];
 }
 
+// 判断一组选key（排好序的3个数字）是否是组三（有重复数字）
+function isZuSanComboKey(key) {
+    return key[0] === key[1] || key[1] === key[2];
+}
+
+// 根据四码+胆生成所有含胆的组三组选（key形式，排序后）
+// 例：胆=4，四码=4069 → 生成 004/044/446/466/449/499 这类组三组选key
+function generateTiedanZuSanKeys(simaDigits, tiedan) {
+    if (!tiedan || !simaDigits || simaDigits.length === 0) return [];
+    const set = new Set();
+    const others = simaDigits.filter(d => d !== tiedan);
+    // 1. 胆重复2次 + 其他码1个：AAB型，AA=tiedan，B=其他码
+    for (const b of others) {
+        const key = [tiedan, tiedan, b].sort((x,y) => x - y).join('');
+        set.add(key);
+    }
+    // 2. 其他码重复2次 + 胆1个：AAB型，AA=其他码，B=tiedan
+    for (const a of others) {
+        const key = [a, a, tiedan].sort((x,y) => x - y).join('');
+        set.add(key);
+    }
+    // 3. 胆本身重复3次：AAA型（tiedan+tiedan+tiedan），如果四码里有胆就加
+    if (simaDigits.includes(tiedan)) {
+        const key = [tiedan, tiedan, tiedan].join('');
+        set.add(key);
+    }
+    return [...set];
+}
+
+// 给一组号码（排列形式）返回组选key集合
+function comboKeysSet(arr) {
+    const s = new Set();
+    for (const n of arr) s.add(n.split('').sort().join(''));
+    return s;
+}
+
+// 给一个排列，返回其在另一组中的组选命中（返回命中的排列）
+// 用于用户说的：301和130同组选都要写出来
+function findSameZuoxuanPerms(targetPerm, allPermsArr) {
+    const key = targetPerm.split('').sort().join('');
+    const res = [];
+    for (const p of allPermsArr) {
+        if (p.split('').sort().join('') === key) res.push(p);
+    }
+    return res;
+}
+
+// 计算康师傅单个号码的"去除优先级分"，分越高越先去掉
+// 参数：numStr（排列），tiedan（胆字符），lyKeys/mjKeys（老洋/名将组选key集合）,
+//       weikuangConfig, favorStr, simaKeys/wumaKeys/liumaKeys（四五码组选来源集合）
+function calcKangshifuRemoveScore(numStr, tiedan, lyKeys, mjKeys, weikuangConfig, favorStr, simaKeys, wumaKeys, liumaKeys) {
+    let score = 0;
+    const key = numStr.split('').sort().join('');
+    // 1. 不含胆 +3（优先去掉）
+    if (!key.includes(tiedan)) score += 3;
+    // 2. 与老洋/名将撞组选 +2（每个+2）
+    if (lyKeys && lyKeys.has(key)) score += 2;
+    if (mjKeys && mjKeys.has(key)) score += 2;
+    // 3. 不符合位框范围（priority=3 → 最差）+2
+    if (weikuangConfig) {
+        const pr = getRangePriority(numStr, weikuangConfig, favorStr);
+        if (pr === 3) score += 2;
+    }
+    // 4. 与看好号码相似性=0 +1
+    if (favorStr) {
+        const sc = getSimilarityScore(numStr, favorStr);
+        if (sc === 0) score += 1;
+    }
+    // 5. 来源：六码组合 > 五码组合 > 四码组合（码越多越不精）+1/2
+    if (simaKeys && simaKeys.has(key)) {
+        // 四码组合：不额外加分（最精）
+    } else if (wumaKeys && wumaKeys.has(key)) {
+        score += 1;
+    } else if (liumaKeys && liumaKeys.has(key)) {
+        score += 2;
+    }
+    return score;
+}
+
+// 判断一个号码是否有"豁免权"：含胆码 且 位框匹配（前六/后六），这种号尽量不去掉
+function isKangshifuProtected(numStr, tiedan, weikuangConfig, favorStr) {
+    const key = numStr.split('').sort().join('');
+    if (!key.includes(tiedan)) return false;
+    if (!weikuangConfig) return false;
+    const pr = getRangePriority(numStr, weikuangConfig, favorStr);
+    return pr !== 3; // 1=前六,2=后六 都是匹配
+}
+
 function formatZuoyouGroups(numbers, groupSizes) {
     let index = 0;
     const result = [];
@@ -5952,6 +6352,8 @@ document.addEventListener('DOMContentLoaded', function() {
     loadRecentFoldState();
     loadWeikuangFoldState();
     loadWeizhiKillFoldState();
+    loadCopyFormat();
+    loadCopyFormatFoldState();
     loadDisplayMode();
     // 先恢复"笔记/算账区"模式（如果用户上次留在算账区，这里就切过去并加载数据）
     loadNoteSuanzhangMode();
@@ -6136,6 +6538,6 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 </script>
-<div style="text-align: center; padding: 8px; font-size: 12px; color: #999;">v2026.08.18</div>
+<div style="text-align: center; padding: 8px; font-size: 12px; color: #999;">v2026.08.24</div>
 </body>
 </html>

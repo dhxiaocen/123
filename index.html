@@ -1696,7 +1696,7 @@
                         <div style="display: flex; align-items: center; gap: 8px;">
                             <label style="font-weight: 600; color: #333; white-space: nowrap;">单挑：</label>
                             <input type="text" id="favor1" class="input-xiaomi" style="width: 60px;" placeholder="">
-                            <button class="btn btn-secondary" style="flex: 1; padding: 6px 10px; font-size: 12px;" onclick="copyZuoyouResult(1)">📋 复制结果</button>
+                            <input type="text" id="removedNums1" class="input-xiaomi" style="flex: 1; padding: 6px 10px; font-size: 12px;" placeholder="">
                         </div>
                     </div>
 
@@ -4568,6 +4568,7 @@ function saveZuoyouConfig() {
         favor1: document.getElementById('favor1').value,
         favor2: document.getElementById('favor2').value,
         favor3: document.getElementById('favor3').value,
+        removedNums1: document.getElementById('removedNums1').value,
         weikuangBai: document.getElementById('weikuangBai').value,
         weikuangShi: document.getElementById('weikuangShi').value,
         weikuangGe: document.getElementById('weikuangGe').value,
@@ -4902,6 +4903,7 @@ function loadZuoyouConfig() {
         document.getElementById('favor1').value = config.favor1 || '';
         document.getElementById('favor2').value = config.favor2 || '';
         document.getElementById('favor3').value = config.favor3 || '';
+        document.getElementById('removedNums1').value = config.removedNums1 || '';
         // 加载位框配置
         document.getElementById('weikuangBai').value = config.weikuangBai || '';
         document.getElementById('weikuangShi').value = config.weikuangShi || '';
@@ -5089,6 +5091,10 @@ function expandZuoyou() {
     let fmt1 = null, fmt2 = null, fmt3 = null;
     let data1 = null, data2 = null, data3 = null;
     
+    // 康师傅"去掉"号码从单独的输入框 removedNums1 读取
+    const removedNums1El = document.getElementById('removedNums1');
+    const removedNums1Val = removedNums1El ? removedNums1El.value : '';
+    
     if (zuoyou1) {
         data1 = parseZuoyouInput(zuoyou1);
         result1 = processZuoyou(data1, tiedan1, duanzu1, 'kangshifu', excludeList, weikuangConfig, favor1, weizhiKillConfig);
@@ -5102,11 +5108,18 @@ function expandZuoyou() {
         result3 = processZuoyou(data3, tiedan3, duanzu3, 'mingjiang', excludeList, weikuangConfig, favor3, weizhiKillConfig);
     }
     
-    // ===== 康师傅特殊处理：5注去除+组三替换+去组合附加 =====
+    // ===== 康师傅特殊处理：5注去除+组三替换=====
     if (result1 && result1.info && result1.combinations.length >= 17) {
         const tiedanDigits = tiedan1 ? tiedan1.split('').filter(d => /^\d$/.test(d)) : [];
         const tiedan = tiedanDigits.length > 0 ? tiedanDigits[0] : '';
         const simaDigits = [...data1.sima].sort((a,b) => a - b);
+        
+        // 解析用户在"去掉"输入框里指定的号码（按组选匹配）
+        const userRemoveStr = (removedNums1Val || '').trim();
+        const userRemovePerms = userRemoveStr
+            ? userRemoveStr.split(/\s+/).filter(p => /^\d{3}$/.test(p))
+            : [];
+        const userRemoveKeys = new Set(userRemovePerms.map(p => p.split('').sort().join('')));
         
         // 先调用 formatZuoyouResult 拿到原始17注排列（带单挑/加权逻辑）
         fmt1 = formatZuoyouResult(result1.combinations, 'kangshifu', result1.info, usedPermutations, weikuangConfig, favor1, weizhiKillConfig, globalUsedPerms);
@@ -5116,71 +5129,79 @@ function expandZuoyou() {
         const lyKeys = result2 ? comboKeysSet(result2.combinations) : new Set();
         const mjKeys = result3 ? comboKeysSet(result3.combinations) : new Set();
         
-        // 计算四五码组选来源集合
-        const simaKeys = comboKeysSet(getZuoyouCombinations(simaDigits, tiedanDigits, true, new Set()));
+        // 计算四五码组选来源集合（四码全组合，含不含胆都算四码内）
+        const simaKeys = comboKeysSet(getZuoyouCombinations(simaDigits, tiedanDigits, false, new Set()));
         const wumaDigits = [...data1.wuma].sort((a,b) => a - b);
-        const wumaKeys = wumaDigits.length >= 3 ? comboKeysSet(getZuoyouCombinations(wumaDigits, tiedanDigits, true, new Set())) : new Set();
+        const wumaKeys = wumaDigits.length >= 3 ? comboKeysSet(getZuoyouCombinations(wumaDigits, tiedanDigits, false, new Set())) : new Set();
         const liumaDigits = [...data1.liuma].sort((a,b) => a - b);
-        const liumaKeys = liumaDigits.length >= 3 ? comboKeysSet(getZuoyouCombinations(liumaDigits, tiedanDigits, true, new Set())) : new Set();
-        
-        // 对17注中"防止出现"部分（索引12~16），也就是最后5注，计算去除优先级
-        // 这里改为对全部17注进行去除评分，但前面单挑和精挑细选的豁免权更高？
-        // 按用户要求：只从防止出现的5注里替换。但用户说"删掉额外的五注号码"，
-        // 所以实际是从全部17注中挑5注最应该去掉的，放到去组合里，然后补5注组三到防止出现。
-        // 根据："不含胆码（优先6码到5码排除）且和老洋或者名将有相同组选的号码"
+        const liumaKeys = liumaDigits.length >= 3 ? comboKeysSet(getZuoyouCombinations(liumaDigits, tiedanDigits, false, new Set())) : new Set();
         
         // 对全部17注进行评分
         const scored = originalPerms.map((p, idx) => {
-            const protected_ = isKangshifuProtected(p, tiedan, weikuangConfig, favor1);
+            let protected_ = isKangshifuProtected(p, tiedan, weikuangConfig, favor1, simaKeys);
+            // 看好号码（第1注，idx=0）强制保护，绝对不能去掉
+            if (idx === 0) protected_ = true;
             const key = p.split('').sort().join('');
             const isZuSan = isZuSanComboKey(key);
             const score = calcKangshifuRemoveScore(p, tiedan, lyKeys, mjKeys, weikuangConfig, favor1, simaKeys, wumaKeys, liumaKeys);
             return { perm: p, idx, score, protected: protected_, isZuSan, key };
         });
         
-        // 去除候选：1) 非组三 2) 非protected 3) 按score降序 4) score相同则idx大的优先（防止出现区域优先）
-        const candidates = scored
-            .filter(s => !s.isZuSan && !s.protected)
-            .sort((a, b) => {
-                if (b.score !== a.score) return b.score - a.score;
-                return b.idx - a.idx; // 后面的（防止出现区域）优先去除
-            });
+        let toRemove = [];
         
-        // 选5注要去除的
-        let toRemove = candidates.slice(0, 5);
-        // 如果不够5注，放宽条件（去掉protected）
-        if (toRemove.length < 5) {
-            const more = scored
-                .filter(s => !s.isZuSan && !toRemove.find(x => x.idx === s.idx))
+        // 优先级：用户指定的去掉号码 > 评分自动选
+        if (userRemoveKeys.size > 0) {
+            // 从全部号码中找组选key匹配的（看好号码第1注保护）
+            for (const s of scored) {
+                if (userRemoveKeys.has(s.key) && !s.isZuSan && s.idx !== 0) {
+                    toRemove.push(s);
+                }
+            }
+            // 如果用户指定的不够5注，用评分自动补
+            if (toRemove.length < 5) {
+                const existingIdxs = new Set(toRemove.map(x => x.idx));
+                const candidates = scored
+                    .filter(s => !s.isZuSan && !s.protected && !existingIdxs.has(s.idx) && s.idx !== 0)
+                    .sort((a, b) => {
+                        if (b.score !== a.score) return b.score - a.score;
+                        return b.idx - a.idx;
+                    });
+                toRemove = [...toRemove, ...candidates].slice(0, 5);
+            }
+        } else {
+            // 自动评分选5注（第1注看好号码保护，四码来源保护）
+            const candidates = scored
+                .filter(s => !s.isZuSan && !s.protected && s.idx !== 0)
                 .sort((a, b) => {
                     if (b.score !== a.score) return b.score - a.score;
                     return b.idx - a.idx;
                 });
-            toRemove = [...toRemove, ...more].slice(0, 5);
-        }
-        
-        // 如果还不够5注（极端情况），直接取最后5注
-        if (toRemove.length < 5) {
-            const existing = new Set(toRemove.map(x => x.idx));
-            for (let i = originalPerms.length - 1; i >= 0 && toRemove.length < 5; i--) {
-                if (!existing.has(i) && !isZuSanComboKey(originalPerms[i].split('').sort().join(''))) {
-                    toRemove.push(scored[i]);
+            
+            toRemove = candidates.slice(0, 5);
+            // 如果不够5注，放宽条件（去掉protected）
+            if (toRemove.length < 5) {
+                const more = scored
+                    .filter(s => !s.isZuSan && s.idx !== 0 && !toRemove.find(x => x.idx === s.idx))
+                    .sort((a, b) => {
+                        if (b.score !== a.score) return b.score - a.score;
+                        return b.idx - a.idx;
+                    });
+                toRemove = [...toRemove, ...more].slice(0, 5);
+            }
+            // 如果还不够5注（极端情况），直接从后往前取
+            if (toRemove.length < 5) {
+                const existing = new Set(toRemove.map(x => x.idx));
+                for (let i = originalPerms.length - 1; i >= 1 && toRemove.length < 5; i--) {
+                    if (!existing.has(i) && !isZuSanComboKey(originalPerms[i].split('').sort().join(''))) {
+                        toRemove.push(scored[i]);
+                    }
                 }
             }
         }
         
         // 记录去除的索引，按idx降序splice
         const removeIdxs = toRemove.map(x => x.idx).sort((a,b) => b - a);
-        const removedPermsDisplay = []; // 同组选排列都要列出
-        const removedKeys = new Set();
-        for (const r of toRemove) {
-            if (!removedKeys.has(r.key)) {
-                removedKeys.add(r.key);
-                // 找到originalPerms中所有与r同组选的排列（用户要求：130与301都要写出）
-                const same = findSameZuoxuanPerms(r.perm, originalPerms);
-                removedPermsDisplay.push(...same);
-            }
-        }
+        const removedPermsDisplay = toRemove.map(x => x.perm);
         
         // 从原始17注中去除这5注
         let newPerms = originalPerms.slice();
@@ -5191,22 +5212,17 @@ function expandZuoyou() {
         
         // 生成5注含胆组三排列
         const zuSanKeys = generateTiedanZuSanKeys(simaDigits, tiedan);
-        // 打乱并选5个
         const shuffledZuSanKeys = shuffleArray(zuSanKeys).slice(0, 5);
-        // 如果不够5个（四码太少），补胆相关其他
         while (shuffledZuSanKeys.length < 5) {
-            // 补胆胆+其他码的重复
             const fallback = [tiedan, tiedan, tiedan].join('');
             if (!shuffledZuSanKeys.includes(fallback)) shuffledZuSanKeys.push(fallback);
             else break;
         }
         
-        // 把组三key转换成排列，同时加入 usedPermutations 和 globalUsedPerms 去重
         const zuSanPerms = [];
         const excludePerms = (result1.info && result1.info.excludeList) ? new Set(result1.info.excludeList) : new Set();
         for (const zsKey of shuffledZuSanKeys) {
             if (zuSanPerms.length >= 5) break;
-            // zsKey是组选key形式如 044，需转成排列并去重
             const sortedKey = zsKey.split('').sort().join('');
             const used = usedPermutations[sortedKey] || new Set();
             let perm = shuffleNumber(zsKey);
@@ -5215,7 +5231,6 @@ function expandZuoyou() {
                 perm = shuffleNumber(zsKey);
                 attempts++;
             }
-            // 遍历兜底
             if (used.has(perm) || excludePerms.has(perm) || globalUsedPerms.has(perm)) {
                 const allP = generateAllPermutations(zsKey);
                 const found = allP.find(p => !used.has(p) && !excludePerms.has(p) && !globalUsedPerms.has(p));
@@ -5227,32 +5242,22 @@ function expandZuoyou() {
             zuSanPerms.push(perm);
         }
         
-        // 凑齐5注
         while (zuSanPerms.length < 5) {
             zuSanPerms.push(tiedan + tiedan + tiedan);
         }
         
-        // 把组三追加到 newPerms 作为"防止出现"部分（位置12~16）
+        // 把组三追加到最后作为"防止出现"部分
         newPerms = newPerms.concat(zuSanPerms);
         
         // 更新 shuffledCombinations
         fmt1.shuffledCombinations = newPerms;
         
-        // 构建去组合显示字符串，直接写入 duanzu1 输入框
-        // 原 duanzu1（用户输入的去组合）保留，然后加 " - " 和被去除的5注
-        const originalDuanzuDisplay = (duanzu1 || '').trim();
+        // 把去掉的5注写入 removedNums1 输入框（专门显示去掉的号码）
         const removedDisplayStr = removedPermsDisplay.join(' ');
-        let duanzuDisplay = originalDuanzuDisplay;
-        if (removedDisplayStr) {
-            duanzuDisplay = originalDuanzuDisplay
-                ? (originalDuanzuDisplay + ' - ' + removedDisplayStr)
-                : removedDisplayStr;
-        }
-        // 写回 duanzu1 输入框（页面上方的配置框）
-        const duanzu1El = document.getElementById('duanzu1');
-        if (duanzu1El) duanzu1El.value = duanzuDisplay;
+        if (removedNums1El) removedNums1El.value = removedDisplayStr;
+        // 持久化保存
+        saveZuoyouConfig();
         // 挂到 info 上备用
-        result1.info.duanzuDisplay = duanzuDisplay;
         result1.info.removedPermsDisplay = removedPermsDisplay;
         
         zuoyouResultsData[1] = {
@@ -5292,7 +5297,7 @@ function expandZuoyou() {
     // ===== 渲染HTML =====
     if (fmt1) {
         // 如果进行了特殊处理（组三替换），按新的 shuffledCombinations 重新按标准格式渲染号码
-        if (zuoyouResultsData[1] && zuoyouResultsData[1].info && zuoyouResultsData[1].info.duanzuDisplay) {
+        if (zuoyouResultsData[1] && zuoyouResultsData[1].info && zuoyouResultsData[1].info.removedPermsDisplay) {
             const reFmt = renderKangshifuStandard(zuoyouResultsData[1]);
             document.getElementById('zuoyou1Numbers').innerHTML = reFmt.html;
         } else {
@@ -5714,11 +5719,19 @@ function processZuoyou(data, tiedan, duanzu, type, excludeList = [], weikuangCon
     const fiveWithoutTiedan = wumaDigits.length >= 3 ? getZuoyouCombinations(wumaDigits, tiedanDigits, false, used) : [];
     const sixWithoutTiedan = liumaDigits.length >= 3 ? getZuoyouCombinations(liumaDigits, tiedanDigits, false, used) : [];
     
-    const withTiedan = [...fourWithTiedan, ...fiveWithTiedan, ...sixWithTiedan];
-    const withoutTiedan = shuffleArray([...fourWithoutTiedan, ...fiveWithoutTiedan, ...sixWithoutTiedan]);
+    // 新顺序：四码含胆 → 五码含胆 → 四码不含 → 五码不含 → 六码含胆 → 六码不含
+    // 不含胆的部分内部打乱
+    const shuffledFourWithout = shuffleArray(fourWithoutTiedan);
+    const shuffledFiveWithout = shuffleArray(fiveWithoutTiedan);
+    const shuffledSixWithout = shuffleArray(sixWithoutTiedan);
     
     let allCandidates = [
-        ...withTiedan, ...withoutTiedan
+        ...fourWithTiedan,
+        ...fiveWithTiedan,
+        ...shuffledFourWithout,
+        ...shuffledFiveWithout,
+        ...sixWithTiedan,
+        ...shuffledSixWithout
     ];
     
     if (duanzu) {
@@ -6291,39 +6304,41 @@ function findSameZuoxuanPerms(targetPerm, allPermsArr) {
 function calcKangshifuRemoveScore(numStr, tiedan, lyKeys, mjKeys, weikuangConfig, favorStr, simaKeys, wumaKeys, liumaKeys) {
     let score = 0;
     const key = numStr.split('').sort().join('');
-    // 1. 不含胆 +3（优先去掉）
-    if (!key.includes(tiedan)) score += 3;
-    // 2. 与老洋/名将撞组选 +2（每个+2）
-    if (lyKeys && lyKeys.has(key)) score += 2;
-    if (mjKeys && mjKeys.has(key)) score += 2;
-    // 3. 不符合位框范围（priority=3 → 最差）+2
+    
+    // 1. 六码来源 +3（最不精，优先排除）
+    if (liumaKeys && liumaKeys.has(key)) {
+        score += 3;
+    }
+    // 2. 五码来源 +1
+    else if (wumaKeys && wumaKeys.has(key)) {
+        score += 1;
+    }
+    // 3. 四码来源 0（不参与去除，由protected保护）
+    
+    // 4. 与老洋/名将撞组选 +3（每个撞了都+3，优先排除撞组选的）
+    if (lyKeys && lyKeys.has(key)) score += 3;
+    if (mjKeys && mjKeys.has(key)) score += 3;
+    
+    // 5. 不符合位框范围（priority=3 → 最差）+2
     if (weikuangConfig) {
         const pr = getRangePriority(numStr, weikuangConfig, favorStr);
         if (pr === 3) score += 2;
     }
-    // 4. 与看好号码相似性=0 +1
+    // 6. 与看好号码相似性=0 +1
     if (favorStr) {
         const sc = getSimilarityScore(numStr, favorStr);
         if (sc === 0) score += 1;
     }
-    // 5. 来源：六码组合 > 五码组合 > 四码组合（码越多越不精）+1/2
-    if (simaKeys && simaKeys.has(key)) {
-        // 四码组合：不额外加分（最精）
-    } else if (wumaKeys && wumaKeys.has(key)) {
-        score += 1;
-    } else if (liumaKeys && liumaKeys.has(key)) {
-        score += 2;
-    }
+    
     return score;
 }
 
-// 判断一个号码是否有"豁免权"：含胆码 且 位框匹配（前六/后六），这种号尽量不去掉
-function isKangshifuProtected(numStr, tiedan, weikuangConfig, favorStr) {
+// 判断一个号码是否有"豁免权"：四码来源的号码不参与去除（最精）
+function isKangshifuProtected(numStr, tiedan, weikuangConfig, favorStr, simaKeys) {
     const key = numStr.split('').sort().join('');
-    if (!key.includes(tiedan)) return false;
-    if (!weikuangConfig) return false;
-    const pr = getRangePriority(numStr, weikuangConfig, favorStr);
-    return pr !== 3; // 1=前六,2=后六 都是匹配
+    // 四码范围内的号码一律保护，不参与去除
+    if (simaKeys && simaKeys.has(key)) return true;
+    return false;
 }
 
 function formatZuoyouGroups(numbers, groupSizes) {
@@ -6538,6 +6553,6 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 </script>
-<div style="text-align: center; padding: 8px; font-size: 12px; color: #999;">v2026.08.24</div>
+<div style="text-align: center; padding: 8px; font-size: 12px; color: #999;">v2026.10.11</div>
 </body>
 </html>

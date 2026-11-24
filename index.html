@@ -916,7 +916,7 @@
                     </div>
                     <div class="section" style="margin-top: 6px;">
                         <div style="display: flex; gap: 6px;">
-                            <button class="btn btn-secondary" onclick="switchScheme(1)" ondblclick="toggleWeizhiKillFill()" style="flex: 1; padding: 14px 4px; font-size: 12px; white-space: nowrap;" id="schemeBtn1">福大底</button>
+                            <button class="btn btn-secondary" onclick="switchScheme(1)" style="flex: 1; padding: 14px 4px; font-size: 12px; white-space: nowrap;" id="schemeBtn1">福大底</button>
                             <button class="btn btn-secondary" onclick="switchScheme(2)" ondblclick="toggleSchemeMark(2)" style="flex: 1; padding: 14px 4px; font-size: 12px; white-space: nowrap;" id="schemeBtn2">福方案1</button>
                             <button class="btn btn-secondary" onclick="switchScheme(3)" ondblclick="toggleSchemeMark(3)" style="flex: 1; padding: 14px 4px; font-size: 12px; white-space: nowrap;" id="schemeBtn3">福方案2</button>
                             <button class="btn btn-secondary" onclick="switchScheme(4)" style="flex: 1; padding: 14px 4px; font-size: 12px; white-space: nowrap;" id="schemeBtn4">体大底</button>
@@ -1738,6 +1738,15 @@
                         </div>
                     </div>
 
+                    <!-- 数据源组选重合（实时） -->
+                    <div id="overlapConfig" style="margin-bottom: 10px; padding: 8px; background: rgba(16, 185, 129, 0.05); border-radius: 6px; border: 1px solid rgba(16, 185, 129, 0.3);">
+                        <div style="display: flex; align-items: center; justify-content: space-between; cursor: pointer;" onclick="toggleOverlapFold()">
+                            <div style="font-weight: 600; color: #333; font-size: 13px;">数据源组选重合（展开）：</div>
+                            <button type="button" class="btn btn-secondary" style="width: auto; padding: 2px 8px; font-size: 11px; height: 24px; border-radius: 6px;" id="overlapFoldToggle">▼</button>
+                        </div>
+                        <div id="overlapContent" style="display: none; margin-top: 8px; font-size: 13px; line-height: 1.9;"></div>
+                    </div>
+
                     <!-- 近期直选配置 -->
                     <div style="margin-bottom: 10px; padding: 8px; background: rgba(16, 185, 129, 0.05); border-radius: 6px; border: 1px solid rgba(16, 185, 129, 0.3);">
                         <div style="display: flex; align-items: center; gap: 6px;">
@@ -1778,34 +1787,6 @@
 
                     <div style="margin-top: 10px;">
                         <button class="btn btn-primary" onclick="copyAllZuoyouResults()" style="width: 100%;">📋 一键复制三个作业</button>
-                    </div>
-
-                    <!-- 百十个位范围配置 -->
-                    <div id="weikuangConfig" style="margin-top: 10px; padding: 10px; background: rgba(16, 185, 129, 0.05); border-radius: 8px; border: 1px solid rgba(16, 185, 129, 0.3);">
-                        <div style="display: flex; align-items: center; justify-content: space-between; cursor: pointer;" onclick="toggleWeikuangFold()">
-                            <div style="font-weight: 600; color: #333;">百十个位范围（可选）：</div>
-                            <button type="button" class="btn btn-secondary" style="width: auto; padding: 2px 8px; font-size: 11px; height: 24px; border-radius: 6px;" id="weikuangFoldToggle">▼</button>
-                        </div>
-                        <div id="weikuangContent" style="display: none; margin-top: 8px;">
-                            <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
-                                <label style="font-weight: 600; color: #333; white-space: nowrap; width: 50px;">百位：</label>
-                                <input type="text" id="weikuangBai" class="input-xiaomi" style="flex: 1;" placeholder="10个数字0-9，不重复" maxlength="10">
-                            </div>
-                            <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
-                                <label style="font-weight: 600; color: #333; white-space: nowrap; width: 50px;">十位：</label>
-                                <input type="text" id="weikuangShi" class="input-xiaomi" style="flex: 1;" placeholder="10个数字0-9，不重复" maxlength="10">
-                            </div>
-                            <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
-                                <label style="font-weight: 600; color: #333; white-space: nowrap; width: 50px;">个位：</label>
-                                <input type="text" id="weikuangGe" class="input-xiaomi" style="flex: 1;" placeholder="10个数字0-9，不重复" maxlength="10">
-                            </div>
-                            <div style="display: flex; gap: 6px;">
-                                <button type="button" class="btn btn-secondary size-btn" id="weikuangQian" style="flex: 1; padding: 6px;" onclick="toggleWeikuangBtn('qian')">前</button>
-                                <button type="button" class="btn btn-secondary size-btn" id="weikuangZhong" style="flex: 1; padding: 6px;" onclick="toggleWeikuangBtn('zhong')">中</button>
-                                <button type="button" class="btn btn-secondary size-btn" id="weikuangHou" style="flex: 1; padding: 6px;" onclick="toggleWeikuangBtn('hou')">后</button>
-                                <button type="button" class="btn btn-secondary size-btn" id="weikuangGuan" style="flex: 1; padding: 6px;" onclick="toggleWeikuangBtn('guan')">关</button>
-                            </div>
-                        </div>
                     </div>
 
                     <div id="zuoyouResults" style="display: none; margin-top: 15px;">
@@ -2773,74 +2754,6 @@ function switchScheme(scheme) {
     window.scrollTo(0, scrollPos);
     
     localStorage.setItem('筛号工具_当前方案', scheme);
-}
-
-// 双击福大底按钮：一键填充福方案1（前4位）和福方案2（后4位）的条件4百十个杀号
-function toggleWeizhiKillFill() {
-    const weikuangBai = document.getElementById('weikuangBai').value.trim();
-    const weikuangShi = document.getElementById('weikuangShi').value.trim();
-    const weikuangGe = document.getElementById('weikuangGe').value.trim();
-    if (weikuangBai.length < 10 || weikuangShi.length < 10 || weikuangGe.length < 10) {
-        alert('请先填写完整的百十个位范围（各10位）！');
-        return;
-    }
-    
-    // 读取方案1和方案2的配置
-    const config1 = JSON.parse(localStorage.getItem('筛号工具_方案2') || '{}');
-    const config2 = JSON.parse(localStorage.getItem('筛号工具_方案3') || '{}');
-    
-    // 判断是否已填充（方案1的exclude1是否有值）
-    const filled1 = config1.exclude1 && config1.exclude1.length > 0;
-    const filled2 = config2.exclude1 && config2.exclude1.length > 0;
-    
-    if (filled1 && filled2) {
-        // 已填充，取消两个方案的百十个杀号
-        config1.exclude1 = []; config1.exclude2 = []; config1.exclude3 = [];
-        config2.exclude1 = []; config2.exclude2 = []; config2.exclude3 = [];
-        localStorage.setItem('筛号工具_方案2', JSON.stringify(config1));
-        localStorage.setItem('筛号工具_方案3', JSON.stringify(config2));
-        // 如果当前是方案1或2，同步更新UI
-        if (currentScheme === 2 || currentScheme === 3) {
-            ['exclude1', 'exclude2', 'exclude3'].forEach(group => {
-                document.querySelectorAll('.num-btn[data-group="' + group + '"]').forEach(btn => {
-                    btn.classList.remove('active');
-                });
-            });
-        }
-        return;
-    }
-    
-    // 填充方案1（前4位）
-    const frontDigits = {
-        bai: weikuangBai.substring(0, 4),
-        shi: weikuangShi.substring(0, 4),
-        ge: weikuangGe.substring(0, 4)
-    };
-    config1.exclude1 = [...frontDigits.bai];
-    config1.exclude2 = [...frontDigits.shi];
-    config1.exclude3 = [...frontDigits.ge];
-    localStorage.setItem('筛号工具_方案2', JSON.stringify(config1));
-    
-    // 填充方案2（后4位）
-    const backDigits = {
-        bai: weikuangBai.substring(6, 10),
-        shi: weikuangShi.substring(6, 10),
-        ge: weikuangGe.substring(6, 10)
-    };
-    config2.exclude1 = [...backDigits.bai];
-    config2.exclude2 = [...backDigits.shi];
-    config2.exclude3 = [...backDigits.ge];
-    localStorage.setItem('筛号工具_方案3', JSON.stringify(config2));
-    
-    // 如果当前是方案1或2，同步更新UI
-    const activeConfig = currentScheme === 2 ? config1 : (currentScheme === 3 ? config2 : null);
-    if (activeConfig) {
-        ['exclude1', 'exclude2', 'exclude3'].forEach(group => {
-            document.querySelectorAll('.num-btn[data-group="' + group + '"]').forEach(btn => {
-                btn.classList.toggle('active', activeConfig[group].includes(btn.dataset.num));
-            });
-        });
-    }
 }
 
 function resetGroupsSilent() {
@@ -4545,6 +4458,7 @@ function clearZuoyouInputs(event) {
     
     // 保存清空后的配置（不清空近期直选）
     saveZuoyouConfig();
+    updateZuoyouOverlap();
 }
 
 function loadZuoyouState() {
@@ -4569,10 +4483,6 @@ function saveZuoyouConfig() {
         favor2: document.getElementById('favor2').value,
         favor3: document.getElementById('favor3').value,
         removedNums1: document.getElementById('removedNums1').value,
-        weikuangBai: document.getElementById('weikuangBai').value,
-        weikuangShi: document.getElementById('weikuangShi').value,
-        weikuangGe: document.getElementById('weikuangGe').value,
-        weikuangMode: getWeikuangMode(),
         weizhiKillBai: document.getElementById('weizhiKillBai').value,
         weizhiKillShi: document.getElementById('weizhiKillShi').value,
         weizhiKillGe: document.getElementById('weizhiKillGe').value
@@ -4580,60 +4490,56 @@ function saveZuoyouConfig() {
     localStorage.setItem('作业区_配置', JSON.stringify(config));
 }
 
-// 获取当前位框模式：'qian'、'zhong'、'hou'、'guan' 或 ''
-function getWeikuangMode() {
-    if (document.getElementById('weikuangQian').classList.contains('active')) return 'qian';
-    if (document.getElementById('weikuangZhong').classList.contains('active')) return 'zhong';
-    if (document.getElementById('weikuangHou').classList.contains('active')) return 'hou';
-    if (document.getElementById('weikuangGuan').classList.contains('active')) return 'guan';
-    return '';
+// 数据源全部展开：取前6位数字的所有三位组选（升序去重，不含胆码/去组合等过滤）
+function getSourceZuXuan(input) {
+    const data = parseZuoyouInput(input || '');
+    if (!data.liuma || data.liuma.length < 3) return [];
+    return getZuoyouCombinations(data.liuma, [], true, new Set());
 }
 
-// 切换"前"/"中"/"后"/"关"按钮（单选）
-function toggleWeikuangBtn(mode) {
-    const qianBtn = document.getElementById('weikuangQian');
-    const zhongBtn = document.getElementById('weikuangZhong');
-    const houBtn = document.getElementById('weikuangHou');
-    const guanBtn = document.getElementById('weikuangGuan');
-    const btns = [qianBtn, zhongBtn, houBtn, guanBtn];
-    btns.forEach(b => b.classList.remove('active'));
-    if (mode === 'qian') qianBtn.classList.add('active');
-    else if (mode === 'zhong') zhongBtn.classList.add('active');
-    else if (mode === 'hou') houBtn.classList.add('active');
-    else if (mode === 'guan') guanBtn.classList.add('active');
-    saveZuoyouConfig();
+// 实时刷新三个数据源两两之间的组选重合
+function updateZuoyouOverlap() {
+    const contentEl = document.getElementById('overlapContent');
+    if (!contentEl) return;
+
+    const names = ['康师傅', '老洋', '名将'];
+    const lists = ['zuoyou1', 'zuoyou2', 'zuoyou3'].map(id => {
+        const el = document.getElementById(id);
+        return getSourceZuXuan(el ? el.value : '');
+    });
+
+    const pairs = [[0, 1], [0, 2], [1, 2]];
+    const html = pairs.map(([x, y]) => {
+        const label = names[x] + ' ∩ ' + names[y];
+        const a = lists[x];
+        const b = lists[y];
+        if (a.length === 0 || b.length === 0) {
+            return `<div style="margin-bottom: 4px;"><b>${label}：</b><span style="color: #888;">暂无</span></div>`;
+        }
+        const bSet = new Set(b);
+        const common = a.filter(item => bSet.has(item));
+        const body = common.length > 0
+            ? `<span style="font-family: monospace;">${common.join(' ')}</span>`
+            : '<span style="color: #888;">无</span>';
+        return `<div style="margin-bottom: 4px;"><b>${label}（${common.length}）：</b>${body}</div>`;
+    }).join('');
+
+    contentEl.innerHTML = html;
 }
 
-// 校验位框输入：三个都填或都不填，必须0-9十个数字不重复
-function validateWeikuang() {
-    const bai = document.getElementById('weikuangBai').value.trim();
-    const shi = document.getElementById('weikuangShi').value.trim();
-    const ge = document.getElementById('weikuangGe').value.trim();
-    const mode = getWeikuangMode();
-    const allEmpty = !bai && !shi && !ge;
-    const allFilled = bai && shi && ge;
-    // 关模式下，不要求填数字串
-    if (mode === 'guan' || allEmpty) {
-        return { valid: true, empty: true };
+function toggleOverlapFold() {
+    const contentEl = document.getElementById('overlapContent');
+    const toggleBtn = document.getElementById('overlapFoldToggle');
+    if (!contentEl || !toggleBtn) return;
+    if (contentEl.style.display === 'none') {
+        // 展开时按当前数据源重新计算，避免显示旧结果
+        updateZuoyouOverlap();
+        contentEl.style.display = 'block';
+        toggleBtn.textContent = '▲';
+    } else {
+        contentEl.style.display = 'none';
+        toggleBtn.textContent = '▼';
     }
-    if (!allFilled) {
-        return { valid: false, msg: '百十个位范围必须三个都填或都不填' };
-    }
-    // 校验每个串：10位数字、0-9不重复
-    for (const [name, val] of [['百位', bai], ['十位', shi], ['个位', ge]]) {
-        if (!/^\d{10}$/.test(val)) {
-            return { valid: false, msg: name + '必须为10位数字' };
-        }
-        const digits = val.split('');
-        const unique = new Set(digits);
-        if (unique.size !== 10) {
-            return { valid: false, msg: name + '不能有重复数字' };
-        }
-    }
-    if (!mode) {
-        return { valid: false, msg: '请选择"前"、"中"、"后"或"关"' };
-    }
-    return { valid: true, empty: false, bai, shi, ge };
 }
 
 // 获取前六范围
@@ -4832,30 +4738,6 @@ function loadRecentFoldState() {
     }
 }
 
-function toggleWeikuangFold() {
-    const contentEl = document.getElementById('weikuangContent');
-    const toggleBtn = document.getElementById('weikuangFoldToggle');
-    if (contentEl.style.display === 'none') {
-        contentEl.style.display = 'block';
-        toggleBtn.textContent = '▲';
-        localStorage.setItem('作业区_位框_折叠', 'open');
-    } else {
-        contentEl.style.display = 'none';
-        toggleBtn.textContent = '▼';
-        localStorage.setItem('作业区_位框_折叠', 'folded');
-    }
-}
-
-function loadWeikuangFoldState() {
-    const saved = localStorage.getItem('作业区_位框_折叠');
-    if (saved === 'open') {
-        const contentEl = document.getElementById('weikuangContent');
-        const toggleBtn = document.getElementById('weikuangFoldToggle');
-        if (contentEl) contentEl.style.display = 'block';
-        if (toggleBtn) toggleBtn.textContent = '▲';
-    }
-}
-
 function toggleWeizhiKillFold() {
     const contentEl = document.getElementById('weizhiKillContent');
     const toggleBtn = document.getElementById('weizhiKillFoldToggle');
@@ -4904,20 +4786,6 @@ function loadZuoyouConfig() {
         document.getElementById('favor2').value = config.favor2 || '';
         document.getElementById('favor3').value = config.favor3 || '';
         document.getElementById('removedNums1').value = config.removedNums1 || '';
-        // 加载位框配置
-        document.getElementById('weikuangBai').value = config.weikuangBai || '';
-        document.getElementById('weikuangShi').value = config.weikuangShi || '';
-        document.getElementById('weikuangGe').value = config.weikuangGe || '';
-        const mode = config.weikuangMode;
-        const qianBtn = document.getElementById('weikuangQian');
-        const zhongBtn = document.getElementById('weikuangZhong');
-        const houBtn = document.getElementById('weikuangHou');
-        const guanBtn = document.getElementById('weikuangGuan');
-        [qianBtn, zhongBtn, houBtn, guanBtn].forEach(b => b.classList.remove('active'));
-        if (mode === 'qian') qianBtn.classList.add('active');
-        else if (mode === 'zhong') zhongBtn.classList.add('active');
-        else if (mode === 'hou') houBtn.classList.add('active');
-        else if (mode === 'guan') guanBtn.classList.add('active');
         // 加载位置杀号配置
         document.getElementById('weizhiKillBai').value = config.weizhiKillBai || '';
         document.getElementById('weizhiKillShi').value = config.weizhiKillShi || '';
@@ -4999,16 +4867,8 @@ function expandZuoyou() {
     const allRecent = getRecentCombos();
     const excludeList = allRecent.slice(-30);
     
-    // 校验位框配置
-    const weikuangCheck = validateWeikuang();
-    if (!weikuangCheck.valid) {
-        alert(weikuangCheck.msg);
-        return;
-    }
-    const mode = getWeikuangMode();
-    const weikuangConfig = (mode && mode !== 'guan' && !weikuangCheck.empty)
-        ? { bai: weikuangCheck.bai, shi: weikuangCheck.shi, ge: weikuangCheck.ge, mode }
-        : (mode === 'guan' ? { mode: 'guan' } : null);
+    // 位框功能已移除，生成时不再做百十个位范围筛选
+    const weikuangConfig = null;
     
     // 读取位置杀号配置
     const weizhiKillConfig = {
@@ -5210,40 +5070,57 @@ function expandZuoyou() {
         }
         // newPerms现在是12注
         
-        // 生成5注含胆组三排列
-        const zuSanKeys = generateTiedanZuSanKeys(simaDigits, tiedan);
-        const shuffledZuSanKeys = shuffleArray(zuSanKeys).slice(0, 5);
-        while (shuffledZuSanKeys.length < 5) {
-            const fallback = [tiedan, tiedan, tiedan].join('');
-            if (!shuffledZuSanKeys.includes(fallback)) shuffledZuSanKeys.push(fallback);
-            else break;
+        // 生成5注含胆组三排列（不含豹子）
+        const zuSanKeys = generateTiedanZuSanKeys(simaDigits, tiedan, data1.liuma);
+        const pickedZuSanKeys = shuffleArray(zuSanKeys).slice(0, 5);
+        // 组三数量不足时用已有组选补位，不再用豹子
+        for (let i = 0; pickedZuSanKeys.length < 5 && zuSanKeys.length > 0; i++) {
+            const fillKey = zuSanKeys[i % zuSanKeys.length];
+            if (!pickedZuSanKeys.includes(fillKey) || pickedZuSanKeys.length >= zuSanKeys.length) {
+                pickedZuSanKeys.push(fillKey);
+            }
         }
+
+        // 与同一个号码组合的组三排在一起（如 05 组合的 050、005、055 连续），组间顺序随机
+        const pairGroups = {};
+        pickedZuSanKeys.forEach(key => {
+            const other = key.split('').find(d => d !== tiedan) || tiedan;
+            if (!pairGroups[other]) pairGroups[other] = [];
+            pairGroups[other].push(key);
+        });
+        const orderedZuSanKeys = [];
+        shuffleArray(Object.keys(pairGroups)).forEach(other => {
+            orderedZuSanKeys.push(...pairGroups[other]);
+        });
         
         const zuSanPerms = [];
         const excludePerms = (result1.info && result1.info.excludeList) ? new Set(result1.info.excludeList) : new Set();
-        for (const zsKey of shuffledZuSanKeys) {
+        // 组三追加部分也按人工排号，接着上面最后一注的位置往下排
+        const anchorPerm = newPerms.length > 0 ? newPerms[0] : (favor1 || null);
+        let prevPerm = newPerms.length > 0 ? newPerms[newPerms.length - 1] : anchorPerm;
+        for (const zsKey of orderedZuSanKeys) {
             if (zuSanPerms.length >= 5) break;
-            const sortedKey = zsKey.split('').sort().join('');
-            const used = usedPermutations[sortedKey] || new Set();
-            let perm = shuffleNumber(zsKey);
-            let attempts = 0;
-            while ((used.has(perm) || excludePerms.has(perm) || globalUsedPerms.has(perm)) && attempts < 20) {
-                perm = shuffleNumber(zsKey);
-                attempts++;
-            }
-            if (used.has(perm) || excludePerms.has(perm) || globalUsedPerms.has(perm)) {
-                const allP = generateAllPermutations(zsKey);
-                const found = allP.find(p => !used.has(p) && !excludePerms.has(p) && !globalUsedPerms.has(p));
-                if (found) perm = found;
-            }
-            used.add(perm);
-            usedPermutations[sortedKey] = used;
-            globalUsedPerms.add(perm);
+            const perm = pickHumanLikePermutation(zsKey, prevPerm, anchorPerm, {
+                usedPermutations,
+                excludePermutations: excludePerms,
+                globalUsedPerms,
+                weikuangConfig,
+                weizhiKillConfig
+            });
             zuSanPerms.push(perm);
+            prevPerm = perm;
         }
         
-        while (zuSanPerms.length < 5) {
-            zuSanPerms.push(tiedan + tiedan + tiedan);
+        while (zuSanPerms.length < 5 && newPerms.length + zuSanPerms.length < 17 && orderedZuSanKeys.length > 0) {
+            const fillKey = orderedZuSanKeys[zuSanPerms.length % orderedZuSanKeys.length];
+            zuSanPerms.push(pickHumanLikePermutation(fillKey, prevPerm, anchorPerm, {
+                usedPermutations,
+                excludePermutations: excludePerms,
+                globalUsedPerms,
+                weikuangConfig,
+                weizhiKillConfig
+            }));
+            prevPerm = zuSanPerms[zuSanPerms.length - 1];
         }
         
         // 把组三追加到最后作为"防止出现"部分
@@ -5855,7 +5732,6 @@ function formatZuoyouResult(numbers, type, info, usedPermutations = null, weikua
     if (numbers.length === 0) return { html: '', shuffledCombinations: [] };
 
     const excludePermutations = (info && info.excludeList) ? new Set(info.excludeList) : new Set();
-    const favorBias = 1;
 
     // 如果指定了看好号码，先从numbers中过滤掉与看好号码同组选的所有组合
     // 确保同一个作者后续不会再出现该组选的任何排列（如406→排除046/460/604/640/064）
@@ -5870,6 +5746,8 @@ function formatZuoyouResult(numbers, type, info, usedPermutations = null, weikua
     }
 
     const shuffledCombinations = [];
+    let anchorPerm = favorStr || null; // 排号基准：看好号码，否则第一注
+    let prevPerm = favorStr || null;   // 上一注，用于位置延续
 
     // 看好号码作为第一个号码
     if (favorStr) {
@@ -5884,22 +5762,25 @@ function formatZuoyouResult(numbers, type, info, usedPermutations = null, weikua
     }
 
     for (let i = 0; i < processedNumbers.length; i++) {
-        if (shuffledCombinations.length === 0) {
-            // 第一个号码（无看好号码时）正常随机
-            if (usedPermutations) {
-                shuffledCombinations.push(shuffleNumberAvoidConflict(processedNumbers[i], usedPermutations, excludePermutations, globalUsedPerms));
-            } else {
-                shuffledCombinations.push(shuffleNumber(processedNumbers[i]));
-            }
+        let perm;
+        if (!prevPerm) {
+            // 第一注（无看好号码时）随机，作为整段的排号基准
+            perm = usedPermutations
+                ? shuffleNumberAvoidConflict(processedNumbers[i], usedPermutations, excludePermutations, globalUsedPerms)
+                : shuffleNumber(processedNumbers[i]);
+            anchorPerm = perm;
         } else {
-            // 后续号码用加权随机，参考第一个号码的百十个位倾向性
-            const currentFavorStr = shuffledCombinations[0];
-            if (usedPermutations) {
-                shuffledCombinations.push(weightedShuffleNumberAvoidConflict(processedNumbers[i], currentFavorStr, favorBias, usedPermutations, excludePermutations, weikuangConfig, weizhiKillConfig, globalUsedPerms));
-            } else {
-                shuffledCombinations.push(weightedShuffleNumber(processedNumbers[i], currentFavorStr, favorBias));
-            }
+            // 后续号码按人工排号：优先保持与上一注相同数字的位置不变
+            perm = pickHumanLikePermutation(processedNumbers[i], prevPerm, anchorPerm, {
+                usedPermutations: usedPermutations || {},
+                excludePermutations,
+                globalUsedPerms,
+                weikuangConfig,
+                weizhiKillConfig
+            });
         }
+        shuffledCombinations.push(perm);
+        prevPerm = perm;
     }
     
     if ((type === 'kangshifu' || type === 'laoyang' || type === 'mingjiang') && info) {
@@ -5990,6 +5871,86 @@ function formatZuoyouResult(numbers, type, info, usedPermutations = null, weikua
             return { html: formatZuoyouGroups(shuffledCombinations, [1, 3, 5, 5, 5]), shuffledCombinations };
         }
     }
+}
+
+// 人工排号：在合法排列中挑选与上一注位置延续性最好的排列
+// prevPerm：上一注；anchorPerm：整段基准（看好号码或第一注）
+// 打分优先：同位置相同数字 > 百位连段 > 与基准同位置 > 十/个位变化幅度小
+function pickHumanLikePermutation(numStr, prevPerm, anchorPerm, ctx) {
+    const key = numStr.split('').sort().join('');
+    const used = ctx.usedPermutations[key] || new Set();
+    const excludeSet = ctx.excludePermutations || new Set();
+    const globalUsed = ctx.globalUsedPerms || null;
+    const allPerms = generateAllPermutations(numStr);
+
+    const isFresh = p => !used.has(p) && !excludeSet.has(p) && !(globalUsed && globalUsed.has(p));
+
+    const matchesKill = p => {
+        const k = ctx.weizhiKillConfig;
+        if (!k) return true;
+        if (k.bai && k.bai.includes(p[0])) return false;
+        if (k.shi && k.shi.includes(p[1])) return false;
+        if (k.ge && k.ge.includes(p[2])) return false;
+        return true;
+    };
+
+    let qianRanges = null, houRanges = null;
+    const wc = ctx.weikuangConfig;
+    if (wc && wc.mode !== 'guan') {
+        qianRanges = getQianRanges(wc.bai, wc.shi, wc.ge);
+        houRanges = getHouRanges(wc.bai, wc.shi, wc.ge);
+    }
+
+    const inRanges = (p, ranges) => ranges && ranges.baiSet.has(p[0]) && ranges.shiSet.has(p[1]) && ranges.geSet.has(p[2]);
+    const matchesWeikuang = p => {
+        if (!wc || wc.mode === 'guan') return true;
+        if (wc.mode === 'qian') return inRanges(p, qianRanges);
+        if (wc.mode === 'hou') return inRanges(p, houRanges);
+        return inRanges(p, qianRanges) || inRanges(p, houRanges);
+    };
+
+    // 约束逐级放宽：全部约束 → 放宽位框 → 放宽位置杀号 → 仅保证同组选不重复 → 允许重复
+    let pool = allPerms.filter(p => isFresh(p) && matchesKill(p) && matchesWeikuang(p));
+    if (pool.length === 0) pool = allPerms.filter(p => isFresh(p) && matchesKill(p));
+    if (pool.length === 0) pool = allPerms.filter(isFresh);
+    if (pool.length === 0) pool = allPerms.filter(p => !used.has(p));
+    if (pool.length === 0) pool = allPerms.slice();
+
+    const posMatch = (a, b) => {
+        if (!b) return 0;
+        let n = 0;
+        for (let i = 0; i < 3; i++) if (a[i] === b[i]) n++;
+        return n;
+    };
+
+    let best = pool[0];
+    let bestScore = -Infinity;
+    let bestShift = Infinity;
+
+    for (const p of pool) {
+        let score = 0;
+        if (prevPerm) {
+            score += posMatch(p, prevPerm) * 100;       // 相同数字留在原位
+            if (p[0] === prevPerm[0]) score += 30;      // 百位连成一段
+        }
+        score += posMatch(p, anchorPerm) * 20;          // 跟随基准号的位置
+
+        // 同分时优先十位、个位变化小的，读起来更顺
+        const shift = prevPerm
+            ? Math.abs(Number(p[1]) - Number(prevPerm[1])) + Math.abs(Number(p[2]) - Number(prevPerm[2]))
+            : 0;
+
+        if (score > bestScore || (score === bestScore && shift < bestShift)) {
+            bestScore = score;
+            bestShift = shift;
+            best = p;
+        }
+    }
+
+    used.add(best);
+    ctx.usedPermutations[key] = used;
+    if (globalUsed) globalUsed.add(best);
+    return best;
 }
 
 function shuffleArray(arr) {
@@ -6256,27 +6217,25 @@ function isZuSanComboKey(key) {
     return key[0] === key[1] || key[1] === key[2];
 }
 
-// 根据四码+胆生成所有含胆的组三组选（key形式，排序后）
+// 根据四码+胆生成所有含胆的组三组选（key形式，排序后；不含豹子）
 // 例：胆=4，四码=4069 → 生成 004/044/446/466/449/499 这类组三组选key
-function generateTiedanZuSanKeys(simaDigits, tiedan) {
+// 四码去重后不足5个组选时，用 extraDigits（五六码）里的其他数字补足
+function generateTiedanZuSanKeys(simaDigits, tiedan, extraDigits = []) {
     if (!tiedan || !simaDigits || simaDigits.length === 0) return [];
     const set = new Set();
-    const others = simaDigits.filter(d => d !== tiedan);
-    // 1. 胆重复2次 + 其他码1个：AAB型，AA=tiedan，B=其他码
-    for (const b of others) {
-        const key = [tiedan, tiedan, b].sort((x,y) => x - y).join('');
-        set.add(key);
-    }
-    // 2. 其他码重复2次 + 胆1个：AAB型，AA=其他码，B=tiedan
-    for (const a of others) {
-        const key = [a, a, tiedan].sort((x,y) => x - y).join('');
-        set.add(key);
-    }
-    // 3. 胆本身重复3次：AAA型（tiedan+tiedan+tiedan），如果四码里有胆就加
-    if (simaDigits.includes(tiedan)) {
-        const key = [tiedan, tiedan, tiedan].join('');
-        set.add(key);
-    }
+    const addKeysFor = (digits) => {
+        const others = [...new Set(digits)].filter(d => d !== tiedan);
+        // 1. 胆重复2次 + 其他码1个：AAB型，AA=tiedan，B=其他码
+        for (const b of others) {
+            set.add([tiedan, tiedan, b].sort((x, y) => x - y).join(''));
+        }
+        // 2. 其他码重复2次 + 胆1个：ABB型，AA=其他码，B=tiedan
+        for (const a of others) {
+            set.add([a, a, tiedan].sort((x, y) => x - y).join(''));
+        }
+    };
+    addKeysFor(simaDigits);
+    if (set.size < 5) addKeysFor(extraDigits);
     return [...set];
 }
 
@@ -6365,7 +6324,6 @@ document.addEventListener('DOMContentLoaded', function() {
     loadZuoyouConfig();
     renderRecentCombos();
     loadRecentFoldState();
-    loadWeikuangFoldState();
     loadWeizhiKillFoldState();
     loadCopyFormat();
     loadCopyFormatFoldState();
@@ -6396,13 +6354,22 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // 给作业区输入框添加自动保存
-    const zuoyouInputs = ['zuoyou1', 'zuoyou2', 'zuoyou3', 'tiedan1', 'tiedan2', 'tiedan3', 'duanzu1', 'duanzu2', 'duanzu3', 'favor1', 'favor2', 'favor3', 'weizhiKillBai', 'weizhiKillShi', 'weizhiKillGe', 'weikuangBai', 'weikuangShi', 'weikuangGe'];
+    const zuoyouInputs = ['zuoyou1', 'zuoyou2', 'zuoyou3', 'tiedan1', 'tiedan2', 'tiedan3', 'duanzu1', 'duanzu2', 'duanzu3', 'favor1', 'favor2', 'favor3', 'weizhiKillBai', 'weizhiKillShi', 'weizhiKillGe'];
     zuoyouInputs.forEach(id => {
         const el = document.getElementById(id);
         if (el) {
             el.addEventListener('input', saveZuoyouConfig);
         }
     });
+
+    // 数据源输入时实时刷新组选重合
+    ['zuoyou1', 'zuoyou2', 'zuoyou3'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.addEventListener('input', updateZuoyouOverlap);
+        }
+    });
+    updateZuoyouOverlap();
 
     // 作业号码源输入时，胆自动填充第一位数字；清空时同时清空去组合
     const zuoyouToTiedanMap = { 'zuoyou1': 'tiedan1', 'zuoyou2': 'tiedan2', 'zuoyou3': 'tiedan3' };

@@ -1738,10 +1738,10 @@
                         </div>
                     </div>
 
-                    <!-- 数据源组选重合（实时） -->
+                    <!-- 重合号（实时） -->
                     <div id="overlapConfig" style="margin-bottom: 10px; padding: 8px; background: rgba(16, 185, 129, 0.05); border-radius: 6px; border: 1px solid rgba(16, 185, 129, 0.3);">
                         <div style="display: flex; align-items: center; justify-content: space-between; cursor: pointer;" onclick="toggleOverlapFold()">
-                            <div style="font-weight: 600; color: #333; font-size: 13px;">数据源组选重合（展开）：</div>
+                            <div style="font-weight: 600; color: #333; font-size: 13px;">重合号：</div>
                             <button type="button" class="btn btn-secondary" style="width: auto; padding: 2px 8px; font-size: 11px; height: 24px; border-radius: 6px;" id="overlapFoldToggle">▼</button>
                         </div>
                         <div id="overlapContent" style="display: none; margin-top: 8px; font-size: 13px; line-height: 1.9;"></div>
@@ -4503,28 +4503,80 @@ function updateZuoyouOverlap() {
     if (!contentEl) return;
 
     const names = ['康师傅', '老洋', '名将'];
+    // 与作业区作者名称颜色保持一致：康师傅红、老洋金、名将蓝
+    const colors = ['#e94560', '#DAA520', '#2196F3'];
+    // 号码中的胆码用浅一档的颜色，避免太深
+    const digitColors = ['#f28fa4', '#e3c46f', '#6fb9f7'];
+    const coloredName = i => `<span style="color: ${colors[i]}; font-weight: 600;">${names[i]}</span>`;
     const lists = ['zuoyou1', 'zuoyou2', 'zuoyou3'].map(id => {
         const el = document.getElementById(id);
         return getSourceZuXuan(el ? el.value : '');
     });
 
+    // 每位作者的胆码，用于把号码中对应的数字染成作者颜色
+    const danDigits = ['tiedan1', 'tiedan2', 'tiedan3'].map(id => {
+        const el = document.getElementById(id);
+        const match = el ? el.value.trim().match(/\d/) : null;
+        return match ? match[0] : '';
+    });
+    const danColorMap = {};
+    danDigits.forEach((digit, i) => {
+        if (!digit) return;
+        if (!danColorMap[digit]) danColorMap[digit] = [];
+        danColorMap[digit].push(digitColors[i]);
+    });
+
+    // 单个数字染色；多个作者胆码相同时用渐变同时保留各自颜色
+    const colorizeDigit = ch => {
+        const matchedColors = danColorMap[ch];
+        if (!matchedColors || matchedColors.length === 0) return ch;
+        if (matchedColors.length === 1) {
+            return `<span style="color: ${matchedColors[0]}; font-weight: 600;">${ch}</span>`;
+        }
+        return `<span style="background: linear-gradient(90deg, ${matchedColors.join(', ')}); -webkit-background-clip: text; background-clip: text; color: transparent; font-weight: 600;">${ch}</span>`;
+    };
+    const renderNumbers = nums => `<span style="font-family: monospace;">${nums.map(item => item.split('').map(colorizeDigit).join('')).join(' ')}</span>`;
+
     const pairs = [[0, 1], [0, 2], [1, 2]];
+    const kangTiedanEl = document.getElementById('tiedan1');
+    const kangTiedan = kangTiedanEl ? kangTiedanEl.value.trim().charAt(0) : '';
     const html = pairs.map(([x, y]) => {
-        const label = names[x] + ' ∩ ' + names[y];
+        const label = coloredName(x) + ' 与 ' + coloredName(y);
         const a = lists[x];
         const b = lists[y];
         if (a.length === 0 || b.length === 0) {
-            return `<div style="margin-bottom: 4px;"><b>${label}：</b><span style="color: #888;">暂无</span></div>`;
+            return `<div style="margin-bottom: 4px;">${label}：<span style="color: #888;">暂无</span></div>`;
         }
         const bSet = new Set(b);
-        const common = a.filter(item => bSet.has(item));
+        let common = a.filter(item => bSet.has(item));
+        // 含康师傅的对比：不含康师傅胆码的组选排前面，含胆码的排后面
+        if ((x === 0 || y === 0) && kangTiedan) {
+            const withoutDan = common.filter(item => !item.includes(kangTiedan));
+            const withDan = common.filter(item => item.includes(kangTiedan));
+            common = withoutDan.concat(withDan);
+        }
         const body = common.length > 0
-            ? `<span style="font-family: monospace;">${common.join(' ')}</span>`
+            ? renderNumbers(common)
             : '<span style="color: #888;">无</span>';
-        return `<div style="margin-bottom: 4px;"><b>${label}（${common.length}）：</b>${body}</div>`;
+        return `<div style="margin-bottom: 4px;">${label}（${common.length}）：${body}</div>`;
     }).join('');
 
-    contentEl.innerHTML = html;
+    // 共用：三个作者都有的组选
+    let sharedHtml;
+    if (lists.some(list => list.length === 0)) {
+        sharedHtml = '<span style="color: #888;">暂无</span>';
+    } else {
+        const secondSet = new Set(lists[1]);
+        const thirdSet = new Set(lists[2]);
+        const shared = lists[0].filter(item => secondSet.has(item) && thirdSet.has(item));
+        sharedHtml = shared.length > 0
+            ? renderNumbers(shared)
+            : '<span style="color: #888;">无</span>';
+        sharedHtml = `（${shared.length}）：${sharedHtml}`;
+    }
+    const sharedLine = `<div style="margin-bottom: 4px;"><span style="color: #333; font-weight: 600;">共用</span>${sharedHtml}</div>`;
+
+    contentEl.innerHTML = html + sharedLine;
 }
 
 function toggleOverlapFold() {
@@ -6363,7 +6415,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // 数据源输入时实时刷新组选重合
-    ['zuoyou1', 'zuoyou2', 'zuoyou3'].forEach(id => {
+    ['zuoyou1', 'zuoyou2', 'zuoyou3', 'tiedan1', 'tiedan2', 'tiedan3'].forEach(id => {
         const el = document.getElementById(id);
         if (el) {
             el.addEventListener('input', updateZuoyouOverlap);
@@ -6396,6 +6448,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     else if (lastAutoVar === 'lastAutoDuanzu2') lastAutoDuanzu2 = '';
                     else if (lastAutoVar === 'lastAutoDuanzu3') lastAutoDuanzu3 = '';
                 }
+                // 胆码变化后重新排序重合面板
+                updateZuoyouOverlap();
             });
         }
     });
